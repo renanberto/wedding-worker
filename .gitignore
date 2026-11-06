@@ -11,6 +11,10 @@ coverage/
 .env.*
 !.env.example
 
+# Credenciais administrativas locais (preferir armazenamento fora do repositório)
+*firebase-adminsdk*.json
+service-account*.json
+
 # Arquivos do sistema e logs
 .DS_Store
 Thumbs.db

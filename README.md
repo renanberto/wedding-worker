@@ -9,12 +9,60 @@ Site estático com o layout original, RSVP público no Cloud Firestore e painel 
 3. Copie `.env.example` para `.env.local` e preencha as seis variáveis `VITE_FIREBASE_*` com os valores da configuração Web do projeto. Reinicie o Vite após alterar variáveis.
 4. Crie o Cloud Firestore em modo de produção e escolha a região apropriada antes de gravar dados. Não use regras públicas de teste.
 5. Em Authentication → Sign-in method, habilite **E-mail/senha**. Em Settings → Authorized domains, adicione `localhost`, o host do GitHub Pages e/ou o domínio próprio.
-6. Em Authentication → Users → Add user, crie manualmente cada conta dos noivos. Copie o **UID** exibido na lista/detalhe do usuário.
-7. No Firestore Console, crie a coleção `admins` e um documento cujo **ID seja exatamente o UID autorizado**. Pode conter `{ enabled: true }` como metadado: **a existência do documento é a autorização**, não o campo `enabled`. Para revogar acesso, exclua o documento e desabilite a conta no Authentication. Nenhuma interface pública cria usuários ou altera a lista. As regras impedem qualquer gravação de `admins` por clientes, inclusive administradores.
+6. Cadastre cada conta com `npm run noivos:add -- --email pessoa@example.com --name "Nome"`, conforme a seção abaixo. Alternativamente, crie a conta em Authentication → Users → Add user e copie seu **UID**.
+7. O script cria o documento `admins/{UID}` automaticamente. No cadastro manual, crie esse documento no Firestore Console com o **ID exatamente igual ao UID autorizado**. Pode conter `{ enabled: true }` como metadado: **a existência do documento é a autorização**, não o campo `enabled`. Para revogar acesso, exclua o documento e desabilite a conta no Authentication. Nenhuma interface pública cria usuários ou altera a lista. As regras impedem qualquer gravação de `admins` por clientes, inclusive administradores.
 8. Publique o conteúdo de `firestore.rules` na aba Rules do Firestore. Alternativamente, após autenticar a CLI com uma conta autorizada: `npx firebase login` e `npx firebase deploy --only firestore:rules --project SEU_PROJECT_ID`. Esses comandos afetam recursos externos e não são executados automaticamente pelo workflow.
 9. Execute `npm run dev`. Sem configuração, o site público renderiza normalmente; envios e login mostram indisponibilidade sem simular sucesso.
 
 Os valores da configuração Web do Firebase são públicos e incorporados ao JavaScript. Nunca coloque senha, service account, chave privada ou credencial do Admin SDK em variáveis `VITE_*`. A autorização depende do Authentication e das regras do Firestore. O SDK inicializa uma única aplicação e usa sua sessão local persistente. O Firebase e as telas administrativas são carregados sob demanda, ao enviar RSVP ou abrir o painel, preservando o carregamento inicial do site público.
+
+## Cadastrar noivos sempre que necessário
+
+O comando usa o [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup) somente no terminal. Cria a conta de e-mail/senha no Authentication e o documento `admins/{UID}` que libera o painel. Cada conta autorizada acessa a lista completa de convidados deste projeto; o cadastro não cria casamentos separados.
+
+1. No Firebase Console → Configurações do projeto → Contas de serviço, gere uma chave privada de uma conta de serviço autorizada a administrar usuários no Authentication e gravar no Firestore. Guarde o JSON **fora do repositório**. A configuração Web de `.env.local` não concede essas permissões.
+2. No Bash/WSL, configure o caminho do arquivo e execute o comando:
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="/caminho/privado/conta-de-servico.json"
+npm run noivos:add -- --email noiva@example.com --name "Nome da noiva"
+npm run noivos:add -- --email noivo@example.com --name "Nome do noivo"
+```
+
+O script solicita e confirma a senha sem exibi-la. Em PowerShell, configure o caminho com `$env:GOOGLE_APPLICATION_CREDENTIALS = "C:\\caminho\\privado\\conta-de-servico.json"`. Depois use o mesmo comando npm. Para automação sem terminal, forneça a senha pela variável de ambiente `NOIVOS_PASSWORD`, usando um gerenciador de segredos, e remova-a do ambiente após a execução. Não passe senhas como argumento nem as salve no histórico.
+
+O projeto vem de `VITE_FIREBASE_PROJECT_ID` no ambiente ou em `.env.local`; para escolher outro, acrescente `--project SEU_PROJECT_ID`. O projeto escolhido é exibido antes de acessar os serviços. `npm run noivos:add -- --help` mostra as opções sem exigir credenciais. Variáveis de emuladores são recusadas para evitar cadastro parcial entre ambientes.
+
+O comando pode ser repetido: reutiliza a conta encontrada pelo e-mail, preserva senha, perfil e metadados administrativos existentes e cria a autorização que estiver faltando. Contas existentes devem estar habilitadas e possuir o provedor de senha. `--name` só define o nome de contas novas. Se o Authentication concluir e o Firestore falhar, a conta permanece criada e o comando falha; corrija a permissão/banco e execute novamente para concluir. Nenhum e-mail é enviado; compartilhe a senha inicial por um canal privado ou use a recuperação de senha do Firebase Console. As APIs administrativas estão descritas na [documentação de gestão de usuários](https://firebase.google.com/docs/auth/admin/manage-users).
+
+Nunca coloque o JSON, a chave privada ou a senha em `VITE_*` ou nos Secrets usados pelo build público. O Admin SDK fica nas ferramentas de desenvolvimento e não é importado pelo aplicativo Web.
+
+### Diagnóstico verificado em 6 de novembro de 2026
+
+- Ambiente local: seis configurações Web preenchidas; chave de App Check ausente.
+- GitHub Actions: existem os seis Secrets da configuração Web; não existe `VITE_FIREBASE_APP_CHECK_SITE_KEY`. A existência dos Secrets não comprova seus valores.
+- Authentication: a configuração pública responde. Os domínios autorizados retornados são `localhost`, `wedding-app-onda.firebaseapp.com` e `wedding-app-onda.web.app`; adicionar `test.ondadeideias.com` ao configurar o domínio final e os fluxos que usam domínios autorizados.
+- Firestore: listagem anônima de `admins` retorna `403 PERMISSION_DENIED`. Isso comprova apenas o bloqueio dessa operação; não confirma que as regras locais estão publicadas nem que o RSVP e os administradores funcionam.
+- Sem credencial administrativa configurada nesta sessão, permanecem sem confirmação: provedor e-mail/senha habilitado, banco `(default)` disponível, contas dos noivos, documentos `admins/{UID}`, regras publicadas e enforcement de App Check. Verifique esses itens no Console e faça login e RSVP reais no domínio final.
+
+## RSVP recusado pelo Firebase
+
+Um cadastro de noivos bem-sucedido pelo Admin SDK não comprova que o formulário público tem permissão de escrita: o SDK administrativo usa IAM e não é submetido às regras dos clientes Web. O formulário grava em `rsvp_responses`, no banco `(default)` do projeto indicado por `VITE_FIREBASE_PROJECT_ID`. A coleção aparece automaticamente após a primeira gravação autorizada; não precisa ser criada manualmente.
+
+Se o console do navegador mostrar `[RSVP] Falha ao registrar resposta. { code: "permission-denied" }`, confira primeiro as regras **publicadas** em Firestore Database → Regras. O deploy do GitHub Pages publica apenas o site, sem publicar `firestore.rules`. Para publicar as regras deste repositório no projeto atual, autentique a Firebase CLI e execute:
+
+```bash
+npx firebase login
+npm run firebase:rules:deploy -- --project wedding-app-onda
+```
+
+Para outro projeto, substitua o ID. O deploy atualiza as regras do banco: confira o projeto antes de executar. Como alternativa, copie o conteúdo completo de `firestore.rules` para a aba Regras do Firestore e clique em **Publicar**. As regras permitem criação pública com campos/tipos/limites validados, mantêm a leitura exclusiva aos administradores e proíbem alteração/exclusão pelo site. Não substitua as regras por acesso público irrestrito.
+
+Se continuar negado, confira App Check → Cloud Firestore. Com enforcement ativo, o build precisa da chave reCAPTCHA Enterprise válida em `VITE_FIREBASE_APP_CHECK_SITE_KEY`, tanto localmente quanto nos Secrets do GitHub, com o domínio configurado; faça um novo build/deploy após configurar. Verifique também se o site e o cadastro administrativo apontam para o mesmo projeto. As regras locais aprovadas no emulador não comprovam as configurações do projeto real.
+
+Em 06/11/2026, um envio válido no site publicado foi reproduzido e o SDK retornou `permission-denied` / `Missing or insufficient permissions`. Nenhum dos envios de diagnóstico foi confirmado pelo Firebase. Sem acesso administrativo ao projeto, não foi possível consultar ou publicar as regras remotas nem verificar o enforcement. O serviço agora preserva o erro original e seu código para diagnóstico, registra apenas o código no console (sem dados do convidado) e orienta contato com os noivos quando há bloqueio de permissão.
+
+Referências: [regras e autorização dos clientes](https://firebase.google.com/docs/firestore/security/rules-conditions), [publicação de regras](https://firebase.google.com/docs/firestore/security/get-started).
 
 ## App Check e limites de abuso
 

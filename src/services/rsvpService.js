@@ -11,8 +11,16 @@ export async function submitRsvp(values) {
     const { db, addDoc, collection, serverTimestamp } = await getServices();
     if (!db) throw new Error('Firebase não configurado.');
     await addDoc(collection(db, 'rsvp_responses'), { ...data, createdAt: serverTimestamp() });
-  } catch {
-    throw new Error('Não foi possível registrar sua resposta. Tente novamente mais tarde ou verifique sua conexão.');
+  } catch (cause) {
+    // Só o código técnico vai para o console: nunca os dados do convidado.
+    const code = typeof cause?.code === 'string' ? cause.code : 'rsvp/unknown';
+    console.error('[RSVP] Falha ao registrar resposta.', { code });
+    const message = code === 'permission-denied' || code === 'unauthenticated'
+      ? 'Não foi possível registrar sua resposta no momento. Por favor, avise os noivos para que verifiquem o formulário.'
+      : 'Não foi possível registrar sua resposta. Tente novamente mais tarde ou verifique sua conexão.';
+    const error = new Error(message, { cause });
+    error.code = code;
+    throw error;
   }
 }
 export async function loadResponses() {
