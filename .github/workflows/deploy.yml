@@ -14,23 +14,49 @@ concurrency:
 
 jobs:
   build:
+    permissions:
+      contents: read
+      pages: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Read Pages configuration
+        id: pages
+        uses: actions/configure-pages@v5
       - name: Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
-      - name: Lint and build
-        run: npm run check
+        run: npm ci --no-audit --no-fund
+      - name: Java for Firestore emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Lint
+        run: npm run lint
+      - name: Unit and component tests
+        run: npm test
+      - name: Firestore security rules tests
+        run: npm run test:rules
+      - name: Install browser for responsive tests
+        run: npx playwright install --with-deps chromium
+      - name: Responsive and navigation tests
+        run: npm run test:e2e
+      - name: Check Firebase configuration and build
+        run: npm run env:check -- production && npm run build
         env:
-          # Para repositorio username.github.io o path base e /.
-          # Para repositorios comuns e /nome-do-repo/.
-          GITHUB_PAGES_BASE: ${{ vars.PAGES_BASE_PATH || format('/{0}/', github.event.repository.name) }}
-          VITE_FORMSPREE_ENDPOINT: ${{ vars.VITE_FORMSPREE_ENDPOINT }}
+          # Domínio próprio e subdiretório vêm da configuração efetiva do Pages.
+          GITHUB_PAGES_BASE: ${{ vars.PAGES_BASE_PATH || format('{0}/', steps.pages.outputs.base_path) }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY || secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN || secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID || secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET || secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID || secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID || secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_APP_CHECK_SITE_KEY: ${{ vars.VITE_FIREBASE_APP_CHECK_SITE_KEY || secrets.VITE_FIREBASE_APP_CHECK_SITE_KEY }}
       - name: Upload static site artifact (downloadable)
         uses: actions/upload-artifact@v4
         with:
