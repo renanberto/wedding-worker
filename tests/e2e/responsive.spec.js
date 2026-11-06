@@ -6,12 +6,24 @@ for (const width of [360, 390, 768, 1024, 1440]) {
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/');
     await expect(page.getByRole('heading', { name: 'Bruna e Rai' })).toBeVisible();
-    if (width <= 700) await page.getByRole('button', { name: 'Abrir menu' }).click();
+    const login = page.getByRole('link', { name: 'Login dos noivos' });
+    await expect(login).toBeVisible();
+    if (width <= 700) {
+      const [brand, button, menu] = await Promise.all([
+        page.getByRole('link', { name: 'Ir para o início' }).boundingBox(),
+        login.boundingBox(), page.getByRole('button', { name: 'Abrir menu' }).boundingBox(),
+      ]);
+      expect(brand.x + brand.width).toBeLessThanOrEqual(button.x);
+      expect(button.x + button.width).toBeLessThanOrEqual(menu.x);
+      await page.getByRole('button', { name: 'Abrir menu' }).click();
+    }
     await page.getByRole('link', { name: 'R.S.V.P.', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Confirme sua presença' })).toBeInViewport();
     await expect(page.locator('#name')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: test.info().outputPath('public.png') });
+    await page.getByRole('link', { name: 'Login dos noivos' }).click();
+    await expect(page).toHaveURL(/#\/admin\/login$/);
     await page.goto('/#/admin');
     await expect(page).toHaveURL(/#\/admin\/login$/);
     await expect(page.getByRole('heading', { name: 'Área dos noivos' })).toBeVisible();
@@ -35,3 +47,26 @@ for (const width of [360, 390, 768, 1024, 1440]) {
     await expect(page.getByRole('status')).toHaveText('Nenhuma confirmação encontrada.');
   });
 }
+
+for (const path of ['/admin', '/admin/', '/admin/login', '/admin/login/']) {
+  test(`entrada direta ${path} abre login e permite atualizar`, async ({ page }) => {
+    await page.goto(path);
+    await expect(page).toHaveURL(/#\/admin\/login$/);
+    await expect(page.getByRole('heading', { name: 'Área dos noivos' })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Área dos noivos' })).toBeVisible();
+  });
+}
+
+test('clicar novamente na mesma seção retorna a ela após rolar a página', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  const rsvp = page.getByRole('link', { name: 'R.S.V.P.', exact: true });
+  const heading = page.getByRole('heading', { name: 'Confirme sua presença' });
+  await rsvp.click();
+  await expect(heading).toBeInViewport();
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await expect(page.getByRole('heading', { name: 'Bruna e Rai' })).toBeInViewport();
+  await rsvp.click();
+  await expect(heading).toBeInViewport();
+});

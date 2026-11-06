@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, CalendarDays, Check, ChevronDown, ExternalLink, Gift, Heart, MapPin, Menu, MessageCircleHeart, Send, X } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, ChevronDown, ExternalLink, Gift, Heart, MapPin, LockKeyhole, Menu, MessageCircleHeart, Send, X } from 'lucide-react';
 import { wedding } from './content';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { submitRsvp } from './services/rsvpService';
 import { RSVP_LIMITS } from './lib/rsvp';
 
@@ -24,12 +24,13 @@ function Header() {
     return () => window.removeEventListener('hashchange', close);
   }, []);
   return <header className="site-header">
-    <a href="#/#home" className="brand" aria-label="Ir para o início">
+    <Link to="/#home" className="brand" aria-label="Ir para o início">
       <img src={`${import.meta.env.BASE_URL}images/monograma-referencia.webp`} alt="Monograma do casal" />
-    </a>
+    </Link>
+    <Link to="/admin/login" className="couple-login"><LockKeyhole size={15} aria-hidden="true" /><span>Login dos noivos</span></Link>
     <button className="mobile-menu-button" type="button" onClick={() => setOpen(v => !v)} aria-expanded={open} aria-controls="primary-nav" aria-label={open ? 'Fechar menu' : 'Abrir menu'}>{open ? <X /> : <Menu />}</button>
     <nav className={`primary-nav ${open ? 'is-open' : ''}`} id="primary-nav" aria-label="Menu principal">
-      {navigation.map(([id, label]) => <a href={`#/#${id}`} onClick={() => setOpen(false)} key={id}>{label}</a>)}
+      {navigation.map(([id, label]) => <Link to={`/#${id}`} onClick={() => setOpen(false)} key={id}>{label}</Link>)}
     </nav>
   </header>;
 }
@@ -44,7 +45,7 @@ function Hero() {
       <p className="hero-place">{wedding.cityLabel}</p>
     </div>
     <img className="church-art" src={`${import.meta.env.BASE_URL}images/igreja-referencia.webp`} alt="Ilustração arquitetônica em traço fino de uma igreja" />
-    <a href="#/#historia" className="scroll-cue" aria-label="Conheça nossa história"><ChevronDown size={20} /></a>
+    <Link to="/#historia" className="scroll-cue" aria-label="Conheça nossa história"><ChevronDown size={20} /></Link>
   </section>;
 }
 
@@ -99,9 +100,9 @@ export function RSVP() {
 
 function Stays() { return <section className="section stays-section" id="hospedagem"><div className="container center"><SectionLabel number="04">Para quem vem de longe</SectionLabel><h2>Hospedagem</h2><p className="lead">Algumas sugestões para aproveitar cada momento da celebração com conforto.</p><div className="stay-grid">{wedding.stays.map((stay,i)=><article className="stay-card" key={i}><div className="stay-number">0{i+1}</div><h3>{stay.name}</h3><p>{stay.detail}</p><SafeLink url={stay.bookingUrl} className="text-link">Ver hospedagem <ArrowRight size={16}/></SafeLink></article>)}</div></div></section>; }
 function Gifts() { return <section className="section gifts-section" id="presentes"><div className="container narrow center"><SectionLabel number="05">O maior presente é você</SectionLabel><Gift size={32} strokeWidth={1} className="section-symbol" /><h2>Lista de presentes</h2><p className="lead">Sua presença já é nosso maior presente. Para quem desejar nos presentear, deixamos aqui algumas opções.</p><div className="gift-links">{wedding.gifts.map((gift,i)=><div key={i} className="gift-item"><div><h3>{gift.title}</h3><p>{gift.description}</p></div><SafeLink url={gift.url} className="round-link" ><ArrowRight size={19} /></SafeLink></div>)}</div></div></section>; }
-function Message() { return <section className="section message-section" id="mensagem"><div className="container narrow center"><SectionLabel number="06">Uma mensagem especial</SectionLabel><MessageCircleHeart size={31} strokeWidth={1.1} className="section-symbol" /><h2>Para você, com amor</h2><p className="lead">{wedding.introduction}</p><p className="script-note">{wedding.footerMessage}</p><a className="outline-button" href="#/#rsvp">Confirmar presença <ArrowRight size={17}/></a></div></section>; }
+function Message() { return <section className="section message-section" id="mensagem"><div className="container narrow center"><SectionLabel number="06">Uma mensagem especial</SectionLabel><MessageCircleHeart size={31} strokeWidth={1.1} className="section-symbol" /><h2>Para você, com amor</h2><p className="lead">{wedding.introduction}</p><p className="script-note">{wedding.footerMessage}</p><Link className="outline-button" to="/#rsvp">Confirmar presença <ArrowRight size={17}/></Link></div></section>; }
 
-function Footer() { return <footer className="site-footer"><div className="footer-line" aria-hidden="true">✦</div><p className="footer-names">{wedding.names}</p><p>{wedding.dateLabel} · {wedding.cityLabel}</p><a href="#/#home">Voltar ao início ↑</a></footer>; }
+function Footer() { return <footer className="site-footer"><div className="footer-line" aria-hidden="true">✦</div><p className="footer-names">{wedding.names}</p><p>{wedding.dateLabel} · {wedding.cityLabel}</p><Link to="/#home">Voltar ao início ↑</Link></footer>; }
 
 export default function App() {
   const location = useLocation();
@@ -109,4 +110,4 @@ export default function App() {
     const id = location.hash.slice(1);
     if (id) document.getElementById(id)?.scrollIntoView();
   }, [location]);
-  return <><a className="skip-link" href="#/#historia">Pular para o conteúdo</a><Header/><main><Hero/><Story/><Wedding/><RSVP/><Stays/><Gifts/><Message/></main><Footer/></>; }
+  return <><Link className="skip-link" to="/#historia">Pular para o conteúdo</Link><Header/><main><Hero/><Story/><Wedding/><RSVP/><Stays/><Gifts/><Message/></main><Footer/></>; }
