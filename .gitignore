@@ -26,3 +26,7 @@ Desktop.ini
 *-debug.log
 playwright-report/
 test-results/
+
+# Estado local da publicação Cloudflare
+.wrangler/
+.dev.vars*

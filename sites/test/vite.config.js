@@ -1,7 +1,9 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
+  server: { fs: { allow: [fileURLToPath(new URL('../../', import.meta.url))] } },
   plugins: [react(), {
     name: 'admin-entry-pages',
     enforce: 'post',
@@ -14,6 +16,6 @@ export default defineConfig({
       }
     },
   }],
-  base: process.env.GITHUB_PAGES_BASE || '/',
+  base: process.env.SITE_BASE_PATH || '/',
   build: { outDir: 'dist', sourcemap: false },
 });

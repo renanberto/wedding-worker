@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ addDoc: vi.fn(), db: {} }));
-vi.mock('../src/lib/firebase', () => ({ db: mocks.db }));
+vi.mock('@wedding/core/lib/firebase.js', () => ({ db: mocks.db }));
 vi.mock('firebase/firestore', () => ({ addDoc: mocks.addDoc, collection: () => 'rsvp_responses', serverTimestamp: () => 'SERVER_TIME', getDocs: vi.fn(), orderBy: vi.fn(), query: vi.fn() }));
-import { submitRsvp } from '../src/services/rsvpService';
+import { submitRsvp } from '@wedding/core/services/rsvpService.js';
 beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(console, 'error').mockImplementation(() => {});

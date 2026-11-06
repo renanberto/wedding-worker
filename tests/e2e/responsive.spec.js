@@ -35,6 +35,7 @@ for (const width of [360, 390, 768, 1024, 1440]) {
 }
 for (const width of [360, 390, 768, 1024, 1440]) {
   test(`componentes administrativos em ${width}px`, async ({ page }) => {
+    test.skip(Boolean(process.env.E2E_BASE_URL || process.env.E2E_PREVIEW === '1'), 'Fixture administrativa disponível somente no servidor local.');
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/tests/e2e/admin-fixture.html');
     await expect(page.getByRole('heading', { name: 'Pessoas confirmadas' })).toBeVisible();

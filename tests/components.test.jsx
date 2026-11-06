@@ -3,11 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 const mocks = vi.hoisted(() => ({ session: {}, submit: vi.fn() }));
-vi.mock('../src/contexts/AuthContext', () => ({ useAuth: () => mocks.session }));
-vi.mock('../src/services/rsvpService', () => ({ submitRsvp: mocks.submit }));
-import ProtectedRoute from '../src/components/admin/ProtectedRoute';
-import { RSVP } from '../src/App';
-import GuestTable from '../src/components/admin/GuestTable';
+vi.mock('@wedding/core/contexts/AuthContext.jsx', () => ({ useAuth: () => mocks.session }));
+vi.mock('@wedding/core/services/rsvpService.js', () => ({ submitRsvp: mocks.submit }));
+import ProtectedRoute from '@wedding/core/components/admin/ProtectedRoute.jsx';
+import { RSVP } from '../sites/test/src/App';
+import GuestTable from '@wedding/core/components/admin/GuestTable.jsx';
 function route(session) {
   mocks.session = session;
   render(<MemoryRouter initialEntries={['/admin']}><Routes><Route path="/admin/login" element={<p>Login</p>} /><Route element={<ProtectedRoute />}><Route path="/admin" element={<p>Dados privados</p>} /></Route></Routes></MemoryRouter>);

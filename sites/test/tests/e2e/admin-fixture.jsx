@@ -1,10 +1,10 @@
 // Fixture exclusiva de testes; não é importada pelo build de produção.
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import StatsCards from '../../src/components/admin/StatsCards';
-import GuestTable from '../../src/components/admin/GuestTable';
-import GuestFilters from '../../src/components/admin/GuestFilters';
-import { filterResponses } from '../../src/lib/rsvp';
+import StatsCards from '@wedding/core/components/admin/StatsCards.jsx';
+import GuestTable from '@wedding/core/components/admin/GuestTable.jsx';
+import GuestFilters from '@wedding/core/components/admin/GuestFilters.jsx';
+import { filterResponses } from '@wedding/core/lib/rsvp.js';
 import '../../src/styles.css';
 const rows = [{ id: 'fixture', name: 'Convidada de teste', attendance: 'yes', guests: 3, message: 'Mensagem de teste '.repeat(60), createdAt: { toMillis: () => 1, toDate: () => new Date('2026-12-01T12:00:00Z') } }];
 export function Fixture() {

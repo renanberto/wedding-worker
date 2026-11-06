@@ -2,12 +2,12 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import './styles.css';
-import { getAdminRedirect } from './lib/navigation';
+import { getAdminRedirect } from '@wedding/core/lib/navigation.js';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
-const AdminLayout = React.lazy(() => import('./pages/admin/AdminLayout'));
-const ProtectedRoute = React.lazy(() => import('./components/admin/ProtectedRoute'));
-const Login = React.lazy(() => import('./pages/admin/Login'));
-const Dashboard = React.lazy(() => import('./pages/admin/Dashboard'));
+const AdminLayout = React.lazy(() => import('@wedding/core/pages/admin/AdminLayout.jsx'));
+const ProtectedRoute = React.lazy(() => import('@wedding/core/components/admin/ProtectedRoute.jsx'));
+const Login = React.lazy(() => import('@wedding/core/pages/admin/Login.jsx'));
+const Dashboard = React.lazy(() => import('@wedding/core/pages/admin/Dashboard.jsx'));
 
 // Compatibilidade com os links de seção anteriores ao roteador.
 const adminRedirect = getAdminRedirect(window.location, import.meta.env.BASE_URL);

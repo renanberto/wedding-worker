@@ -10,11 +10,19 @@ const configured = required.filter(name => env[name]?.trim());
 console.log(`Firebase (${mode}): ${configured.length}/${required.length} configurações preenchidas.`);
 for (const name of required) console.log(`${env[name]?.trim() ? 'OK' : 'PENDENTE'} ${name}`);
 console.log(`${env.VITE_FIREBASE_APP_CHECK_SITE_KEY?.trim() ? 'OK' : 'PENDENTE (opcional para build)'} VITE_FIREBASE_APP_CHECK_SITE_KEY`);
-if (!configured.length) {
+if (mode === 'production' && configured.length < required.length) {
+  console.error('Produção exige a configuração Firebase completa para login e RSVP.');
+  process.exitCode = 1;
+} else if (!configured.length) {
   console.log('Site público disponível; RSVP e login aguardam a configuração Firebase.');
 } else if (configured.length < required.length) {
   console.error('Configuração Firebase incompleta. Preencha os campos pendentes antes de publicar.');
   process.exitCode = 1;
 } else {
   console.log('Configuração Web preenchida. Valide as regras, administradores e App Check no Console.');
+}
+
+if (process.env.EXPECTED_FIREBASE_PROJECT_ID && env.VITE_FIREBASE_PROJECT_ID !== process.env.EXPECTED_FIREBASE_PROJECT_ID) {
+  console.error('O projeto Firebase não corresponde ao site selecionado. Publicação recusada.');
+  process.exitCode = 1;
 }

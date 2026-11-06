@@ -1,27 +1,21 @@
 {
-  "name": "casamento-elegance",
+  "name": "onda-wedding-sites",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0",
+    "dev": "npm run dev --workspace @wedding/test --",
+    "build": "npm run build --workspace @wedding/test",
+    "preview": "npm run preview --workspace @wedding/test --",
     "lint": "eslint .",
     "check": "npm run lint && npm test && npm run build",
     "test": "vitest run",
     "test:rules": "firebase emulators:exec --only firestore --project demo-wedding \"node --test tests/rules/*.test.js\"",
     "test:e2e": "playwright test",
-    "env:check": "node scripts/check-env.js",
-    "noivos:add": "node scripts/add-noivo.js",
-    "firebase:rules:deploy": "firebase deploy --only firestore:rules"
-  },
-  "dependencies": {
-    "firebase": "^13.2.0",
-    "lucide-react": "^0.468.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^7.18.5"
+    "env:check": "npm run env:check --workspace @wedding/test --",
+    "noivos:add": "npm run noivos:add --workspace @wedding/test --",
+    "firebase:rules:deploy": "firebase deploy --only firestore:rules",
+    "deploy:test": "wrangler pages deploy sites/test/dist --project-name onda-wedding-test --branch main"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
@@ -40,9 +34,14 @@
     "globals": "^15.14.0",
     "jsdom": "^29.1.1",
     "vite": "^6.0.5",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "wrangler": "^4.158.0"
   },
   "overrides": {
     "@grpc/grpc-js": "^1.13.6"
-  }
+  },
+  "workspaces": [
+    "sites/*",
+    "packages/*"
+  ]
 }

@@ -1,14 +1,14 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 const mocks = vi.hoisted(() => ({ listener: null, getDoc: vi.fn(), signIn: vi.fn(), signOut: vi.fn(), persistence: vi.fn() }));
-vi.mock('../src/lib/firebase', () => ({ auth: {}, db: {} }));
+vi.mock('@wedding/core/lib/firebase.js', () => ({ auth: {}, db: {} }));
 vi.mock('firebase/auth', () => ({
   browserLocalPersistence: 'LOCAL',
   onAuthStateChanged: (_auth, listener) => { mocks.listener = listener; return () => {}; },
   setPersistence: mocks.persistence, signInWithEmailAndPassword: mocks.signIn, signOut: mocks.signOut,
 }));
 vi.mock('firebase/firestore', () => ({ doc: (_db, collection, uid) => `${collection}/${uid}`, getDoc: mocks.getDoc }));
-import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@wedding/core/contexts/AuthContext.jsx';
 function Session() {
   const { user, isAdmin, loading, login, logout } = useAuth();
   return <><p>{loading ? 'verificando' : isAdmin ? 'autorizado' : user ? 'sem autorização' : 'visitante'}</p><button onClick={() => login('admin@example.test', 'test-only-password')}>Entrar</button><button onClick={logout}>Sair</button></>;

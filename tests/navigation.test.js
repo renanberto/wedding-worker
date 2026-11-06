@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { getAdminRedirect } from '../src/lib/navigation';
+import { getAdminRedirect } from '@wedding/core/lib/navigation.js';
 it.each([
   ['/admin', '/', '/#/admin'],
   ['/admin/', '/', '/#/admin'],

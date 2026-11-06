@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { calculateStats, filterResponses, validateRsvp } from '../src/lib/rsvp';
-import { responsesToCsv } from '../src/lib/csv';
+import { calculateStats, filterResponses, validateRsvp } from '@wedding/core/lib/rsvp.js';
+import { responsesToCsv } from '@wedding/core/lib/csv.js';
 const valid = { name: ' João ', attendance: 'yes', guests: '2', message: ' Olá! ' };
 const rows = [
   { id: '1', name: 'João', attendance: 'yes', guests: 2, message: 'Olá', createdAt: { toMillis: () => 1, toDate: () => new Date('2026-12-01T12:00:00Z') } },

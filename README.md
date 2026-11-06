@@ -1,3 +1,63 @@
+# Sites de casamento — Onda de Ideias
+
+Repositório com layouts independentes e recursos compartilhados. O site existente está em `sites/test`; login, painel, formulário RSVP e serviços Firebase estão em `packages/wedding-core`.
+
+```text
+sites/test/                 layout, conteúdo, imagens e configuração Firebase do teste
+packages/wedding-core/      login, formulário, painel, validações e integração Firebase
+scripts/                    ferramentas administrativas e bootstrap do Pages
+.github/workflows/deploy.yml  testes e publicação Cloudflare Pages
+```
+
+## Desenvolvimento
+
+Use Node.js 22. Na raiz, execute `npm ci`, copie `sites/test/.env.example` para `sites/test/.env.local`, preencha a configuração Web e execute `npm run dev`. Os comandos `npm test`, `npm run lint`, `npm run build` e `npm run test:e2e` continuam disponíveis na raiz. O build fica em `sites/test/dist`.
+
+`npm run noivos:add -- --email pessoa@example.com --name "Nome"` usa o ambiente de `sites/test` e uma credencial administrativa externa ao repositório. O comando `npm run firebase:rules:deploy -- --project SEU_PROJECT_ID` continua explícito e separado do deploy do site.
+
+## Publicação no Cloudflare Pages
+
+O workflow executa os testes, compila o workspace e publica o diretório `sites/test/dist` no projeto `onda-wedding-test`, branch de produção `main`. O projeto é criado automaticamente caso não exista. A publicação é Direct Upload via GitHub Actions; não depende de conectar cada projeto ao GitHub no painel Cloudflare. Um projeto Direct Upload não pode ser convertido em projeto com integração Git; a automação permanece no Actions.
+
+Configure no GitHub:
+
+- Variable `CLOUDFLARE_ACCOUNT_ID`: identificador da conta escolhida.
+- Secret `CLOUDFLARE_API_TOKEN`: token com **Account → Cloudflare Pages → Edit**, limitado à conta. Não é incorporado ao build Web.
+- Os seis Secrets `VITE_FIREBASE_*` existentes, e `VITE_FIREBASE_APP_CHECK_SITE_KEY` quando aplicável. A produção recusa configuração incompleta e projeto Firebase diferente do site declarado na matriz.
+
+O ambiente GitHub `site-test` permite configurar variáveis Firebase próprias do site. Para sites novos, crie um ambiente distinto com seus Secrets; a verificação do project ID impede usar silenciosamente o Firebase de outro casamento.
+
+Depois da publicação, o workflow cadastra `test.ondadeideias.com` em **Custom domains**. No Squarespace, substitua apenas o registro do host `test` por um `CNAME` apontando para o endereço `*.pages.dev` efetivamente atribuído ao projeto. Não altere registros do domínio principal, e-mail ou outros subdomínios. Não troque o DNS antes de verificar o site no endereço Pages. O domínio atual no GitHub Pages pode permanecer até a conclusão da troca; depois remova-o das configurações antigas.
+
+A configuração de nameservers do domínio pode continuar no Squarespace. HTTPS e a validação do domínio são gerenciados pelo Pages após o apontamento.
+
+## Adicionar outro casamento
+
+1. Crie outro workspace em `sites/<nome>` com conteúdo e layout próprios, usando `@wedding/core` para os recursos compartilhados.
+2. Use um **projeto Firebase separado por casamento** e publique nele as regras de `firestore.rules`. Os caminhos atuais `admins` e `rsvp_responses` são compartilhados dentro de cada projeto Firebase: outro domínio, pasta ou projeto Cloudflare não isola esses dados.
+3. Crie um ambiente GitHub `site-<nome>` com os Secrets Firebase do novo projeto. Adicione a entrada à matriz do workflow com o workspace, projeto Pages e ID Firebase esperado corretos.
+4. Cadastre os administradores no novo projeto. Para selecionar seu ambiente: `npm run noivos:add --workspace @wedding/<nome> -- --email pessoa@example.com`. O workspace deve expor o script apontando para `../../scripts/add-noivo.js`.
+5. Associe o subdomínio ao projeto Pages e configure o CNAME no Squarespace. Revise os domínios autorizados do Firebase Authentication e do App Check de cada site.
+
+O layout e CSS são de cada site. O formulário compartilhado usa classes que o layout pode estilizar; também é possível construir outra apresentação sobre o serviço `submitRsvp` e a validação `validateRsvp`.
+
+## Verificação de ponta a ponta
+
+- `npm run test:e2e`: navegação e responsividade locais, incluindo os componentes administrativos com dados fictícios.
+- `E2E_PREVIEW=1 npm run test:e2e`: verifica o build de produção local em vez do servidor de desenvolvimento.
+- `E2E_BASE_URL=https://SEU_PROJETO.pages.dev npm run test:e2e`: verifica o site publicado; a fixture administrativa local é ignorada.
+- Teste real de login/RSVP: configure `GOOGLE_APPLICATION_CREDENTIALS` apontando para uma conta de serviço externa ao repositório, `E2E_FIREBASE_PROJECT_ID` com o projeto exato do site e `E2E_FIREBASE_LIVE=1`; execute `npm run test:e2e -- tests/e2e/firebase.spec.js`. Adicione `E2E_BASE_URL` para testar a publicação.
+
+O teste real cria duas contas descartáveis, autoriza uma delas e grava um RSVP identificado por UUID. Ao terminar, exclui somente suas próprias contas, documento de autorização e respostas. Não executa por padrão nem no workflow público; requer permissões administrativas de Authentication e Firestore. Uma falha no cleanup exige remover os recursos E2E pelo Console. Não publique relatórios contendo dados reais dos convidados.
+
+Referências: [Direct Upload com CI](https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/), [domínios personalizados](https://developers.cloudflare.com/pages/configuration/custom-domains/).
+
+---
+
+## Histórico e operação do site original
+
+As referências ao GitHub Pages abaixo descrevem a hospedagem anterior. O workflow atual publica no Cloudflare Pages conforme explicado acima.
+
 # Site de casamento · React + Vite + Firebase
 
 Site estático com o layout original, RSVP público no Cloud Firestore e painel exclusivo dos noivos. Pode ser publicado no GitHub Pages sem servidor dedicado. As especificações recebidas estão em `TASK1.md`.
@@ -6,7 +66,7 @@ Site estático com o layout original, RSVP público no Cloud Firestore e painel 
 
 1. Use Node.js 22+ e execute `npm ci`.
 2. Crie um projeto no Firebase Console e registre um aplicativo **Web**.
-3. Copie `.env.example` para `.env.local` e preencha as seis variáveis `VITE_FIREBASE_*` com os valores da configuração Web do projeto. Reinicie o Vite após alterar variáveis.
+3. Copie `sites/test/.env.example` para `sites/test/.env.local` e preencha as seis variáveis `VITE_FIREBASE_*` com os valores da configuração Web do projeto. Reinicie o Vite após alterar variáveis.
 4. Crie o Cloud Firestore em modo de produção e escolha a região apropriada antes de gravar dados. Não use regras públicas de teste.
 5. Em Authentication → Sign-in method, habilite **E-mail/senha**. Em Settings → Authorized domains, adicione `localhost`, o host do GitHub Pages e/ou o domínio próprio.
 6. Cadastre cada conta com `npm run noivos:add -- --email pessoa@example.com --name "Nome"`, conforme a seção abaixo. Alternativamente, crie a conta em Authentication → Users → Add user e copie seu **UID**.
@@ -68,7 +128,7 @@ Referências: [regras e autorização dos clientes](https://firebase.google.com/
 
 Registre o aplicativo Web no **App Check**, usando **reCAPTCHA Enterprise**, e autorize os domínios reais na chave do reCAPTCHA. Preencha `VITE_FIREBASE_APP_CHECK_SITE_KEY` com a chave pública. Faça novo build, acompanhe métricas e só então habilite **enforcement para Cloud Firestore** no Console. Não habilitar enforcement deixa a proteção apenas em monitoramento. Para testes locais com enforcement, use um domínio autorizado ou o procedimento oficial de debug do App Check; não publique tokens de debug.
 
-O formulário tem honeypot e trava contra envio concorrente no mesmo componente. As regras validam campos, tipos, timestamp de servidor e limites (nome 120, mensagem 1000, total de pessoas 1–10 para presença e 0 para ausência). Para alterar limites, sincronize `src/lib/rsvp.js`, `firestore.rules` e testes. O limite é o **total incluindo o convidado**, não uma validação nominal do convite.
+O formulário tem honeypot e trava contra envio concorrente no mesmo componente. As regras validam campos, tipos, timestamp de servidor e limites (nome 120, mensagem 1000, total de pessoas 1–10 para presença e 0 para ausência). Para alterar limites, sincronize `packages/wedding-core/src/lib/rsvp.js`, `firestore.rules` e testes. O limite é o **total incluindo o convidado**, não uma validação nominal do convite.
 
 Envios são anônimos. App Check, honeypot e regras não impedem completamente automação, duplicatas ou abuso por clientes válidos e não oferecem limite por IP. Configure monitoramento de uso, cotas e alertas de orçamento no Google Cloud; alertas de orçamento não interrompem cobrança. Para limites rigorosos por convite, taxa ou volume será necessário um serviço confiável adicional (fora desta implementação estática). Não há deduplicação entre sessões/dispositivos nem edição/exclusão pelo site.
 
@@ -121,7 +181,7 @@ O workflow `.github/workflows/deploy.yml` usa Node 22 e Java 21, executa `npm ci
 2. Em Settings → Secrets and variables → Actions → **Secrets**, cadastre os seis nomes `VITE_FIREBASE_*` de `.env.example` e `VITE_FIREBASE_APP_CHECK_SITE_KEY` em **Secrets** (New repository secret). O armazenamento no GitHub é protegido, mas a configuração Web é incorporada ao JavaScript público pelo Vite; nenhuma service account é necessária no build.
 3. Configure `PAGES_BASE_PATH`: `/` para domínio próprio ou repositório `usuario.github.io`; `/wedding-worker/` para publicação no subdiretório deste repositório. Sem variável, `actions/configure-pages` detecta o caminho pela configuração real do Pages, inclusive domínio próprio na raiz.
 4. Faça push para `main` ou execute **Run workflow**. Confira os jobs build/deploy e o endereço em Settings → Pages.
-5. Verifique que o HTML publicado referencia JS compilado em `assets/`, nunca `src/main.jsx`. O HashRouter preserva atualização direta das rotas sem fallback de servidor. Os links públicos usam `#/#secao`; links antigos `#secao` são convertidos ao carregar.
+5. Verifique que o HTML publicado referencia JS compilado em `assets/`, nunca `sites/test/src/main.jsx`. O HashRouter preserva atualização direta das rotas sem fallback de servidor. Os links públicos usam `#/#secao`; links antigos `#secao` são convertidos ao carregar.
 
 ### Domínio test.ondadeideias.com
 
@@ -131,7 +191,7 @@ Para outra hospedagem estática, publique `dist/`. Para gerar build em subpasta 
 
 ## Conteúdo e privacidade antes de divulgar
 
-Edite `src/content.js` com nomes, data, endereços, prazo RSVP, mapas, hospedagem e presentes oficiais. Dados atuais são demonstrativos; links vazios aparecem como “Em breve”. Os arquivos de monograma e igreja em `public/images/` vieram da referência visual e devem ser substituídos pelos arquivos oficiais autorizados. Fontes continuam carregadas do Google Fonts.
+Edite `sites/test/src/content.js` com nomes, data, endereços, prazo RSVP, mapas, hospedagem e presentes oficiais. Dados atuais são demonstrativos; links vazios aparecem como “Em breve”. Os arquivos de monograma e igreja em `sites/test/public/images/` vieram da referência visual e devem ser substituídos pelos arquivos oficiais autorizados. Fontes continuam carregadas do Google Fonts.
 
 As confirmações são armazenadas no Firebase/Google. Defina aviso de privacidade apropriado ao evento, acesso restrito aos noivos e prazo de retenção/exclusão pelo Console. Evite solicitar dados sensíveis no campo livre.
 
@@ -139,10 +199,10 @@ Consulte [preços do Firestore](https://firebase.google.com/docs/firestore/prici
 
 ## Arquivos principais
 
-- `src/App.jsx`, `src/content.js`, `src/styles.css`: site público e identidade visual existente.
-- `src/lib/firebase.js`: SDK modular e App Check; `src/services/rsvpService.js`: persistência e leitura.
-- `src/lib/rsvp.js`, `src/lib/csv.js`: validação, cálculos, filtros e exportação.
-- `src/contexts/AuthContext.jsx`, `src/components/admin/`, `src/pages/admin/`: sessão, proteção e painel.
+- `sites/test/src/App.jsx`, `sites/test/src/content.js`, `sites/test/src/styles.css`: site público e identidade visual existente.
+- `packages/wedding-core/src/lib/firebase.js`: SDK modular e App Check; `packages/wedding-core/src/services/rsvpService.js`: persistência e leitura.
+- `packages/wedding-core/src/lib/rsvp.js`, `packages/wedding-core/src/lib/csv.js`: validação, cálculos, filtros e exportação.
+- `packages/wedding-core/src/contexts/AuthContext.jsx`, `packages/wedding-core/src/components/admin/`, `packages/wedding-core/src/pages/admin/`: sessão, proteção e painel.
 - `firestore.rules`, `firebase.json`, `tests/rules/`: segurança e emulador.
 - `tests/`, `vitest.config.js`, `playwright.config.js`: testes automatizados.
 
@@ -160,15 +220,15 @@ O ambiente local precisou de Java 21 e Chromium/bibliotecas Linux temporários; 
 
 Arquivos criados:
 
-- `src/lib/firebase.js`, `src/lib/firestoreApi.js`, `src/lib/rsvp.js`, `src/lib/csv.js`.
-- `src/services/rsvpService.js` e `src/contexts/AuthContext.jsx`.
-- `src/components/admin/ProtectedRoute.jsx`, `StatsCards.jsx`, `GuestFilters.jsx`, `GuestTable.jsx`.
-- `src/pages/admin/AdminLayout.jsx`, `Login.jsx`, `Dashboard.jsx`.
+- `packages/wedding-core/src/lib/firebase.js`, `packages/wedding-core/src/lib/firestoreApi.js`, `packages/wedding-core/src/lib/rsvp.js`, `packages/wedding-core/src/lib/csv.js`.
+- `packages/wedding-core/src/services/rsvpService.js` e `packages/wedding-core/src/contexts/AuthContext.jsx`.
+- `packages/wedding-core/src/components/admin/ProtectedRoute.jsx`, `StatsCards.jsx`, `GuestFilters.jsx`, `GuestTable.jsx`.
+- `packages/wedding-core/src/pages/admin/AdminLayout.jsx`, `Login.jsx`, `Dashboard.jsx`.
 - `firestore.rules`, `firebase.json`, `vitest.config.js`, `playwright.config.js`.
 - `tests/setup.js`, `tests/auth.test.jsx`, `tests/components.test.jsx`, `tests/rsvp.test.js`, `tests/rsvpService.test.js`, `tests/rules/firestore.test.js`.
 - `tests/e2e/responsive.spec.js`, `tests/e2e/admin-fixture.html`, `tests/e2e/admin-fixture.jsx`.
 
-Arquivos modificados: `src/App.jsx`, `src/main.jsx`, `src/styles.css`, `.env.example`, `.gitignore`, `package.json`, `package-lock.json`, `.github/workflows/deploy.yml` e `README.md`. O arquivo de especificações `TASK1.md` recebido foi preservado.
+Arquivos modificados: `sites/test/src/App.jsx`, `sites/test/src/main.jsx`, `sites/test/src/styles.css`, `.env.example`, `.gitignore`, `package.json`, `package-lock.json`, `.github/workflows/deploy.yml` e `README.md`. O arquivo de especificações `TASK1.md` recebido foi preservado.
 
 ## Ambiente preparado para configuração Firebase
 
