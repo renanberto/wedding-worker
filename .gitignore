@@ -1,7 +1,17 @@
+# Dependências e arquivos gerados
 node_modules/
 dist/
+.vite/
+coverage/
+.eslintcache
+
+# Configurações locais (preservar o exemplo)
 .env
 .env.*
 !.env.example
+
+# Arquivos do sistema e logs
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.log

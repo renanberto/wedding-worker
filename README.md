@@ -67,11 +67,27 @@ O site mostra feedback de sucesso **somente se a API confirmar o envio**. Se o e
    - artefato interno `github-pages` para deploy automático via GitHub Pages.
 4. O job `deploy` publica o site e oferece a URL pública da página na execução.
 
+Para o repositório `renanberto/wedding-worker`, mantenha **Source: GitHub Actions**. O workflow existente publica `dist/` diretamente; não é necessário selecionar uma branch/pasta de publicação nem criar outro workflow pelo assistente do Pages. Sem domínio personalizado, deixe `PAGES_BASE_PATH` ausente: a base será `/wedding-worker/` e a URL será `https://renanberto.github.io/wedding-worker/`.
+
+Após enviar uma correção para `main`, acompanhe **Actions → Build and Deploy GitHub Pages** e confirme que os jobs `build` e `deploy` terminaram com sucesso. Para executar novamente sem outro commit, use **Run workflow** na branch `main`. Depois da publicação, confira o endereço em **Settings → Pages** e ative **Enforce HTTPS** se a opção estiver disponível.
+
 ### Endereço e base path
 
 - Repositório `usuario/casamento`: endereço `https://usuario.github.io/casamento/`, base automática `/casamento/`.
 - Repositório `usuario/usuario.github.io`: endereço `https://usuario.github.io/`. Nesse caso configure a variável Actions **`PAGES_BASE_PATH` = `/`**.
-- Domínio personalizado na raiz: normalmente configure **`PAGES_BASE_PATH` = `/`**, ative o domínio nas configurações de Pages e configure DNS (e opcionalmente `public/CNAME`).
+- Domínio personalizado na raiz: configure **`PAGES_BASE_PATH` = `/`**, ative o domínio nas configurações de Pages e configure DNS. Com este workflow de GitHub Actions, um arquivo `public/CNAME` não é necessário.
+
+### Domínio `test.ondadeideias.com`
+
+1. No repositório `renanberto/wedding-worker`, abra **Settings → Pages**, mantenha **Source: GitHub Actions**, informe **Custom domain: `test.ondadeideias.com`** e clique em **Save**.
+2. No provedor DNS de `ondadeideias.com`, crie um registro **CNAME**, nome **`test`**, destino **`renanberto.github.io`**, TTL automático/padrão. O destino não deve conter protocolo ou caminho do repositório. Substitua eventuais registros conflitantes apenas do host `test`.
+3. No repositório, em **Settings → Secrets and variables → Actions → Variables**, crie/atualize **`PAGES_BASE_PATH`** com o valor **`/`**. Isso faz o build gerar os caminhos de JS, CSS e imagens para a raiz do domínio.
+4. Envie as correções para `main` ou, se já estiverem publicadas na branch, execute **Actions → Build and Deploy GitHub Pages → Run workflow** na branch `main`.
+5. Aguarde a validação DNS e a emissão do certificado em **Settings → Pages**, depois ative **Enforce HTTPS**. A opção pode levar até 24 horas para ficar disponível.
+
+O site será acessado em `https://test.ondadeideias.com/`. O nome do repositório continua `wedding-worker`.
+
+Referência: [domínios personalizados no GitHub Pages](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site).
 
 Em qualquer hospedagem estática diferente de GitHub Pages, publique o conteúdo de `dist/`. Se ficar sob uma subpasta, ajuste `GITHUB_PAGES_BASE` no build.
 
