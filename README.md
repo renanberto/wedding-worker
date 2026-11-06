@@ -70,7 +70,7 @@ O Playwright inicia o Vite e verifica o site público, âncoras, menu móvel, re
 O workflow `.github/workflows/deploy.yml` usa Node 22 e Java 21, executa `npm ci`, lint, testes unitários, regras no emulador, testes de navegador e build. Só então disponibiliza `casamento-static-dist` para download e publica `dist/` no GitHub Pages. Não publica regras Firebase automaticamente.
 
 1. Em Settings → Pages, selecione **GitHub Actions** como Source.
-2. Em Settings → Secrets and variables → Actions → **Variables**, configure os seis nomes `VITE_FIREBASE_*` de `.env.example` e `VITE_FIREBASE_APP_CHECK_SITE_KEY`. São configurações públicas Web; nenhuma service account é necessária no build.
+2. Em Settings → Secrets and variables → Actions → **Secrets**, cadastre os seis nomes `VITE_FIREBASE_*` de `.env.example` e `VITE_FIREBASE_APP_CHECK_SITE_KEY` em **Secrets** (New repository secret). O armazenamento no GitHub é protegido, mas a configuração Web é incorporada ao JavaScript público pelo Vite; nenhuma service account é necessária no build.
 3. Configure `PAGES_BASE_PATH`: `/` para domínio próprio ou repositório `usuario.github.io`; `/wedding-worker/` para publicação no subdiretório deste repositório. Sem variável, `actions/configure-pages` detecta o caminho pela configuração real do Pages, inclusive domínio próprio na raiz.
 4. Faça push para `main` ou execute **Run workflow**. Confira os jobs build/deploy e o endereço em Settings → Pages.
 5. Verifique que o HTML publicado referencia JS compilado em `assets/`, nunca `src/main.jsx`. O HashRouter preserva atualização direta das rotas sem fallback de servidor. Os links públicos usam `#/#secao`; links antigos `#secao` são convertidos ao carregar.
@@ -126,7 +126,7 @@ Arquivos modificados: `src/App.jsx`, `src/main.jsx`, `src/styles.css`, `.env.exa
 
 O arquivo local `.env.local` está ignorado pelo Git e pode receber os valores da configuração **Web** do Firebase. Execute `npm run env:check` para ver apenas quais nomes estão preenchidos, sem imprimir seus valores. Nenhum valor preenchido permite publicar o site público com RSVP/login indisponíveis; preenchimento parcial falha na checagem. Depois de preencher os seis campos, reinicie `npm run dev` para aplicá-los. A chave pública App Check é opcional para build e necessária para usar o provedor com enforcement.
 
-Para produção, cadastre os mesmos sete nomes em Actions **Variables** (preferencial para a configuração Web pública) ou **Secrets**; o workflow aceita ambos, dando prioridade a Variables. Depois execute novamente o workflow, pois o Vite incorpora os valores no build. A leitura de nomes/valores das variáveis via CLI depende de permissões próprias do token; não é necessária para o build executado pelo GitHub Actions. A configuração Web/objeto `firebaseConfig` pode ser compartilhada para esse ajuste; não inclua senhas, contas de serviço ou chaves privadas.
+Para produção, cadastre os mesmos sete nomes em Actions **Secrets**; o workflow lê exclusivamente Secrets para a configuração Firebase. Depois execute novamente o workflow, pois o Vite incorpora os valores no build. A gestão dos Secrets via CLI exige uma conta com acesso ao repositório e permissão Secrets de escrita. O GitHub não devolve os valores dos Secrets depois de gravados; essa permissão da CLI não é necessária ao build executado pelo Actions. A configuração Web/objeto `firebaseConfig` pode ser compartilhada para esse ajuste; não inclua senhas, contas de serviço ou chaves privadas.
 
 ## Acesso direto às rotas e botão dos noivos
 
