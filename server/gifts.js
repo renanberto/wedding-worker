@@ -2,9 +2,9 @@ import { validateGift, validateGiftGuest, giftStatus } from '../packages/wedding
 import { hasWeddingAccess, validateWeddingId } from '../packages/wedding-core/src/lib/wedding.js';
 
 export class GiftError extends Error {
-  constructor(status, message) { super(message); this.status = status; }
+  constructor(status, message, code) { super(message); this.status = status; this.code = code; }
 }
-const fail = (status, message) => { throw new GiftError(status, message); };
+const fail = (status, message, code) => { throw new GiftError(status, message, code); };
 const validId = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value);
 export async function digest(value) {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -99,7 +99,7 @@ export function giftService({ store, weddingId, tokenSecret, origin, sendEmail, 
       });
       try {
         await sendEmail({ to: guest.email, name: guest.name, title: result.giftTitle, url: `${origin}/#/presentes/confirmar?reservation=${id}&token=${token}`, idempotencyKey: `gift-${weddingId}-${id}` });
-      } catch { await closeFailed(id, input.giftId); fail(503, 'Não foi possível enviar o e-mail. O presente foi liberado; tente novamente em alguns instantes.'); }
+      } catch { await closeFailed(id, input.giftId); fail(503, 'Não foi possível enviar o e-mail. O presente foi liberado; tente novamente em alguns instantes.', 'mail-failed'); }
       return { status: 'pending', expiresAt: result.expiresAt };
     },
     async confirm(input) {

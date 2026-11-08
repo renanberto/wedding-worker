@@ -16,7 +16,7 @@ export default function GiftCatalog() {
     event.preventDefault(); setBusy(true); setError('');
     const fields = Object.fromEntries(new FormData(event.currentTarget));
     try { setSent(await reserveGift({ ...fields, ...selection })); setSelection(null); setRevision(v => v + 1); }
-    catch (e) { setError(e.message); if (e.status === 503) setSelection(value => value && ({ ...value, requestId: crypto.randomUUID() })); setRevision(v => v + 1); }
+    catch (e) { setError(e.message); if (e.code === 'mail-failed') setSelection(value => value && ({ ...value, requestId: crypto.randomUUID() })); setRevision(v => v + 1); }
     finally { setBusy(false); }
   }
   return <div className="gift-catalog">

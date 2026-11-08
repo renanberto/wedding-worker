@@ -51,7 +51,7 @@ it('expiração libera o presente e um link antigo não toma uma nova reserva', 
 });
 it('falha de envio libera o presente e invalida o link', async () => {
   mail.mockRejectedValueOnce(new Error('provider credentials should not leak'));
-  await expect(service.reserve(input(), 'ip')).rejects.toMatchObject({ status: 503 });
+  await expect(service.reserve(input(), 'ip')).rejects.toMatchObject({ status: 503, code: 'mail-failed' });
   expect((await service.list()).gifts[0].status).toBe('available');
   await expect(service.confirm(linkInput())).rejects.toMatchObject({ status: 410 });
 });

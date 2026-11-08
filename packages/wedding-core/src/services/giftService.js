@@ -14,7 +14,7 @@ async function call(path, input, admin = false) {
   if (admin && !token) throw new Error('Entre novamente para acessar os presentes.');
   const response = await fetch(`/api/gifts${path}`, { method: input === undefined ? 'GET' : 'POST', headers: { ...(input === undefined ? {} : { 'Content-Type': 'application/json' }), ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: input === undefined ? undefined : JSON.stringify(input), signal: AbortSignal.timeout(25000) });
   let result; try { result = await response.json(); } catch { throw new Error('A lista de presentes está temporariamente indisponível.'); }
-  if (!response.ok) throw Object.assign(new Error(result.error || 'Não foi possível concluir. Tente novamente.'), { status: response.status });
+  if (!response.ok) throw Object.assign(new Error(result.error || 'Não foi possível concluir. Tente novamente.'), { status: response.status, code: result.code });
   return result;
 }
 export async function loadGifts(admin = false) {

@@ -54,7 +54,7 @@ export function createWorker(config, dependencies = {}) {
       }
       return json({ error: 'Página não encontrada.' }, 404);
     } catch (error) {
-      if (error instanceof GiftError) return json({ error: error.message }, error.status);
+      if (error instanceof GiftError) return json({ error: error.message, ...(error.code ? { code: error.code } : {}) }, error.status);
       // Não registrar conteúdo de requisições, tokens, e-mails ou erros do provedor.
       console.error('[Gifts] Falha interna.');
       return json({ error: 'Não foi possível concluir agora. Tente novamente em alguns instantes.' }, 503);
