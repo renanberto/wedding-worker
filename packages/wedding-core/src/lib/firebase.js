@@ -2,6 +2,7 @@ import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
+import { demoMode } from './site';
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -11,7 +12,7 @@ const config = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
-export const firebaseReady = Object.values(config).every(Boolean);
+export const firebaseReady = !demoMode && Object.values(config).every(Boolean);
 const app = firebaseReady ? (getApps().length ? getApp() : initializeApp(config)) : null;
 if (app && import.meta.env.VITE_FIREBASE_APP_CHECK_SITE_KEY) {
   initializeAppCheck(app, {

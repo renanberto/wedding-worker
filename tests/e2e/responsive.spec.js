@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
+const headingName = process.env.E2E_HEADING || ((process.env.E2E_SITE || 'test') === 'demo-moderno' ? 'Helena & Tomás' : 'Bruna e Rai');
 for (const width of [360, 390, 768, 1024, 1440]) {
   test(`site público e login em ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Bruna e Rai' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: headingName })).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath('home.png') });
     const login = page.getByRole('link', { name: 'Login dos noivos' });
     await expect(login).toBeVisible();
     if (width <= 700) {
@@ -18,7 +20,7 @@ for (const width of [360, 390, 768, 1024, 1440]) {
       await page.getByRole('button', { name: 'Abrir menu' }).click();
     }
     await page.getByRole('link', { name: 'R.S.V.P.', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Confirme sua presença' })).toBeInViewport();
+    await expect(page.locator('#rsvp').getByRole('heading', { level: 2 })).toBeInViewport();
     await expect(page.locator('#name')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: test.info().outputPath('public.png') });
@@ -35,7 +37,7 @@ for (const width of [360, 390, 768, 1024, 1440]) {
 }
 for (const width of [360, 390, 768, 1024, 1440]) {
   test(`componentes administrativos em ${width}px`, async ({ page }) => {
-    test.skip(Boolean(process.env.E2E_BASE_URL || process.env.E2E_PREVIEW === '1'), 'Fixture administrativa disponível somente no servidor local.');
+    test.skip(Boolean(process.env.E2E_BASE_URL || process.env.E2E_PREVIEW === '1' || (process.env.E2E_SITE && process.env.E2E_SITE !== 'test')), 'Fixture administrativa disponível somente no servidor local.');
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/tests/e2e/admin-fixture.html');
     await expect(page.getByRole('heading', { name: 'Pessoas confirmadas' })).toBeVisible();
@@ -63,11 +65,11 @@ test('clicar novamente na mesma seção retorna a ela após rolar a página', as
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
   const rsvp = page.getByRole('link', { name: 'R.S.V.P.', exact: true });
-  const heading = page.getByRole('heading', { name: 'Confirme sua presença' });
+  const heading = page.locator('#rsvp').getByRole('heading', { level: 2 });
   await rsvp.click();
   await expect(heading).toBeInViewport();
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
-  await expect(page.getByRole('heading', { name: 'Bruna e Rai' })).toBeInViewport();
+  await expect(page.getByRole('heading', { name: headingName })).toBeInViewport();
   await rsvp.click();
   await expect(heading).toBeInViewport();
 });
