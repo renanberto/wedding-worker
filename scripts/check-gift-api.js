@@ -1,0 +1,12 @@
+const origin = new URL(process.argv[2]).origin;
+const response = await fetch(`${origin}/api/gifts`, { signal: AbortSignal.timeout(30000) });
+if (!response.ok || !response.headers.get('Cache-Control')?.includes('no-store')) throw new Error('API de presentes indisponível ou sem proteção de cache.');
+const data = await response.json();
+if (!Array.isArray(data.gifts) || typeof data.reservationsEnabled !== 'boolean') throw new Error('Resposta inesperada na API de presentes.');
+const allowed = new Set(['id', 'title', 'description', 'url', 'imageUrl', 'status']);
+if (data.gifts.some(g => Object.keys(g).some(key => !allowed.has(key)))) throw new Error('Campo privado inesperado no catálogo público.');
+const admin = await fetch(`${origin}/api/gifts/admin`, { signal: AbortSignal.timeout(15000) });
+if (admin.status !== 401) throw new Error('A API administrativa deve exigir autenticação.');
+const csrf = await fetch(`${origin}/api/gifts/confirm`, { method: 'POST', headers: { Origin: 'https://untrusted.invalid', 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(15000) });
+if (csrf.status !== 403) throw new Error('A API deve recusar origens externas.');
+console.log(`API de presentes: catálogo válido; administração protegida; escolhas ${data.reservationsEnabled ? 'habilitadas' : 'aguardando configuração de e-mail'}.`);

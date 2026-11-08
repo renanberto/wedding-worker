@@ -1,6 +1,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isGiftService(weddingId) {
+      return request.auth != null
+        && request.auth.token.get('giftServiceFor', '') == weddingId
+        && exists(/databases/$(database)/documents/weddings/$(weddingId)/services/gifts)
+        && get(/databases/$(database)/documents/weddings/$(weddingId)/services/gifts).data.enabled == true;
+    }
     function isWeddingAdmin(weddingId) {
       return request.auth != null
         && exists(/databases/$(database)/documents/weddings/$(weddingId)/members/$(request.auth.uid))
@@ -26,18 +32,28 @@ service cloud.firestore {
     }
     match /weddings/{weddingId} {
       // Somente metadados públicos do evento; informações de membros ficam na subcoleção.
-      allow get: if resource.data.active == true || isWeddingAdmin(weddingId);
+      allow get: if resource.data.active == true || isWeddingAdmin(weddingId) || isGiftService(weddingId);
       allow list, create, update, delete: if false;
       match /members/{uid} {
-        allow get: if request.auth != null && request.auth.uid == uid;
+        allow get: if (request.auth != null && request.auth.uid == uid) || isGiftService(weddingId);
         allow list, create, update, delete: if false;
       }
+      match /gifts/{giftId} { allow read, write: if isGiftService(weddingId); }
+      match /gift_reservations/{reservationId} {
+        allow read, delete: if isGiftService(weddingId);
+        allow create: if isGiftService(weddingId) && acceptsRsvp(weddingId);
+        allow update: if isGiftService(weddingId)
+          && (acceptsRsvp(weddingId) || request.resource.data.status in ['cancelled', 'failed']);
+      }
+      match /gift_rate_limits/{limitId} { allow read, write: if isGiftService(weddingId); }
       match /rsvp_responses/{responseId} {
         allow read: if isWeddingAdmin(weddingId);
         allow create: if acceptsRsvp(weddingId) && validRsvp();
         allow update, delete: if false;
       }
     }
+    // Presentes e reservas são acessados apenas pela API, que verifica o membro
+    // e executa transações. Não exponha nomes, e-mails ou tokens no SDK cliente.
     // LEGACY_COMPATIBILITY
     // Sem permissões para admins/ ou rsvp_responses/ na raiz.
   }

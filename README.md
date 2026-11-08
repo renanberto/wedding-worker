@@ -2,6 +2,8 @@
 
 Layouts independentes, com formulário RSVP, login e painel compartilhados. Código no GitHub; hospedagem no Cloudflare Pages; Firebase compartilhado com dados e permissões separados por casamento.
 
+A [lista de presentes](docs/PRESENTES.md) permite cadastrar sugestões no painel e reservar um presente com nome/e-mail, confirmando a escolha por link. O envio real exige configurar remetente e credencial do provedor; o exemplo moderno simula o fluxo sem enviar mensagens.
+
 | Site | Identidade | Dados | Publicação |
 | --- | --- | --- | --- |
 | `test` | Bruna e Rai, clássico | Firebase `wedding-app-onda` | https://test.ondadeideias.com |

@@ -5,6 +5,8 @@ const AdminLayout = React.lazy(() => import('../pages/admin/AdminLayout'));
 const ProtectedRoute = React.lazy(() => import('./admin/ProtectedRoute'));
 const Login = React.lazy(() => import('../pages/admin/Login'));
 const Dashboard = React.lazy(() => import('../pages/admin/Dashboard'));
+const Gifts = React.lazy(() => import('../pages/admin/Gifts'));
+const GiftConfirmation = React.lazy(() => import('../pages/GiftConfirmation'));
 
 class SiteErrorBoundary extends React.Component {
   state = { failed: false };
@@ -20,8 +22,9 @@ export default function SiteRouter({ PublicPage }) {
     {demoMode && <aside className="demo-notice">Site de demonstração · casal e evento fictícios · respostas apenas nesta aba</aside>}
     <React.Suspense fallback={<main className="admin-shell" role="status">Carregando…</main>}><Routes>
       <Route path="/" element={<PublicPage />} />
+      <Route path="/presentes/confirmar" element={<GiftConfirmation />} />
       <Route element={<AdminLayout />}><Route path="/admin/login" element={<Login />} />
-        <Route element={<ProtectedRoute />}><Route path="/admin" element={<Dashboard />} /></Route>
+        <Route element={<ProtectedRoute />}><Route path="/admin" element={<Dashboard />} /><Route path="/admin/presentes" element={<Gifts />} /></Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes></React.Suspense>

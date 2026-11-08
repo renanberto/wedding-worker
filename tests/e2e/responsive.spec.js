@@ -51,7 +51,7 @@ for (const width of [360, 390, 768, 1024, 1440]) {
   });
 }
 
-for (const path of ['/admin', '/admin/', '/admin/login', '/admin/login/']) {
+for (const path of ['/admin', '/admin/', '/admin/login', '/admin/login/', '/admin/presentes']) {
   test(`entrada direta ${path} abre login e permite atualizar`, async ({ page }) => {
     await page.goto(path);
     await expect(page).toHaveURL(/#\/admin\/login$/);

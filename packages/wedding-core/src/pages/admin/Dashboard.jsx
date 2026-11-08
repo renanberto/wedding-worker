@@ -22,7 +22,7 @@ export default function Dashboard() {
     return () => { active = false; };
   }, [revision]);
   return <main className="admin-shell"><header className="admin-header"><div><Link to="/">← Site do casamento</Link><h1>Confirmações de presença</h1></div><button className="outline-button" onClick={() => logout().catch(() => setError('Não foi possível sair. Tente novamente.'))}>Sair</button></header>
-    <div className="admin-actions"><button onClick={() => setRevision(value => value + 1)} disabled={state === 'loading'}>Atualizar</button><button disabled={state !== 'ready' || !rows.length} onClick={() => exportResponses(rows)}>Exportar confirmações</button></div>
+    <div className="admin-actions"><Link className="outline-button" to="/admin/presentes">Gerenciar presentes</Link><button onClick={() => setRevision(value => value + 1)} disabled={state === 'loading'}>Atualizar</button><button disabled={state !== 'ready' || !rows.length} onClick={() => exportResponses(rows)}>Exportar confirmações</button></div>
     {error && <p role="alert" className="form-error">{error}</p>}
     {state === 'loading' && <p role="status">Carregando confirmações…</p>}
     {state === 'ready' && <><StatsCards rows={rows} /><GuestFilters filters={filters} onChange={setFilters} /><GuestTable rows={filterResponses(rows, filters)} /></>}
