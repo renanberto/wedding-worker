@@ -1,5 +1,6 @@
 {
   "id": "test",
   "mode": "firebase",
-  "indexable": false
+  "indexable": false,
+  "weddingId": "test"
 }

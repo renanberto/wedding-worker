@@ -5,15 +5,17 @@ import { createHash } from 'node:crypto';
 import { initializeApp, applicationDefault, deleteApp } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { validateRsvp } from '../packages/wedding-core/src/lib/rsvp.js';
-import { readSites } from './site-config.js';
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { project: { type: 'string' }, out: { type: 'string' }, file: { type: 'string' }, apply: { type: 'boolean' }, help: { type: 'boolean' } } });
+import { resolveWedding } from './wedding-admin.js';
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { project: { type: 'string' }, wedding: { type: 'string' }, legacy: { type: 'boolean', default: false }, out: { type: 'string' }, file: { type: 'string' }, apply: { type: 'boolean' }, help: { type: 'boolean' } } });
 if (values.help) {
-  console.log('backup --project ID --out /caminho/privado/backup.json | restore --project ID --file /caminho/privado/backup.json [--apply]');
+  console.log('backup --project ID --wedding CASAMENTO --out /caminho/privado/backup.json | restore --project ID --wedding CASAMENTO --file /caminho/privado/backup.json [--apply]');
   process.exit(0);
 }
 const operation = positionals[0];
 const project = values.project;
-if (!['backup', 'restore'].includes(operation) || !project || !(await readSites()).some(s => s.mode === 'firebase' && s.firebaseProject === project)) throw new Error('Escolha backup/restore e um projeto Firebase cadastrado em sites.json.');
+if (!['backup', 'restore'].includes(operation)) throw new Error('Escolha backup ou restore.');
+const weddingId = values.wedding;
+await resolveWedding(project, weddingId);
 if (process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Remova FIRESTORE_EMULATOR_HOST antes de operar dados reais.');
 const file = resolve(values.out || values.file || '');
 if (!(operation === 'backup' ? values.out : values.file)) throw new Error('Informe --out ou --file.');
@@ -25,28 +27,32 @@ const checksum = rows => createHash('sha256').update(JSON.stringify(rows)).diges
 let snapshot;
 if (operation === 'restore') {
   snapshot = JSON.parse(await readFile(file, 'utf8'));
-  if (snapshot.schema !== 1 || snapshot.projectId !== project || !Array.isArray(snapshot.responses) || snapshot.checksum !== checksum(snapshot.responses)) throw new Error('Backup inválido, corrompido ou de outro projeto.');
+  const validScope = (snapshot.schema === 2 && snapshot.weddingId === weddingId) || (snapshot.schema === 1 && values.legacy && !snapshot.weddingId);
+  if (!validScope || snapshot.projectId !== project || !Array.isArray(snapshot.responses) || snapshot.checksum !== checksum(snapshot.responses)) throw new Error('Backup inválido, corrompido ou de outro casamento/projeto. Backups antigos exigem --legacy e destino explícito.');
   const ids = new Set();
   for (const row of snapshot.responses) {
     if (!/^[A-Za-z0-9_-]{1,1500}$/.test(row.id) || ids.has(row.id) || !Number.isInteger(row.data?.createdAt?.seconds) || !Number.isInteger(row.data?.createdAt?.nanoseconds)) throw new Error('Documento inválido no backup.');
     ids.add(row.id); validateRsvp(row.data); new Timestamp(row.data.createdAt.seconds, row.data.createdAt.nanoseconds);
   }
-  console.log(`Backup validado: ${snapshot.responses.length} respostas do projeto ${project}.`);
+  console.log(`Backup validado: ${snapshot.responses.length} respostas do casamento ${weddingId}, projeto ${project}.`);
   if (!values.apply) { console.log('Simulação concluída. --apply restaura apenas documentos ausentes, sem sobrescrever respostas ou permissões.'); process.exit(0); }
 }
 const app = initializeApp({ credential: applicationDefault(), projectId: project });
 try {
   const db = getFirestore(app);
+  const wedding = db.collection('weddings').doc(weddingId);
+  if (!(await wedding.get()).exists) throw new Error('Casamento não encontrado no Firebase.');
+  const responsesRef = wedding.collection('rsvp_responses');
   if (operation === 'backup') {
-    const responses = await db.collection('rsvp_responses').get();
+    const responses = await responsesRef.get();
     const rows = responses.docs.map(doc => { const data = doc.data(); return { id: doc.id, data: { ...data, createdAt: { seconds: data.createdAt.seconds, nanoseconds: data.createdAt.nanoseconds } } }; });
-    const bundle = { schema: 1, projectId: project, exportedAt: new Date().toISOString(), responses: rows, checksum: checksum(rows) };
+    const bundle = { schema: 2, projectId: project, weddingId, exportedAt: new Date().toISOString(), responses: rows, checksum: checksum(rows) };
     await writeFile(file, JSON.stringify(bundle), { flag: 'wx', mode: 0o600 });
     console.log(`Backup criado: ${rows.length} respostas. Arquivo privado: ${file}`);
   } else {
     let created = 0, preserved = 0;
     for (const row of snapshot.responses) {
-      try { await db.collection('rsvp_responses').doc(row.id).create({ ...validateRsvp(row.data), createdAt: new Timestamp(row.data.createdAt.seconds, row.data.createdAt.nanoseconds) }); created++; }
+      try { await responsesRef.doc(row.id).create({ ...validateRsvp(row.data), createdAt: new Timestamp(row.data.createdAt.seconds, row.data.createdAt.nanoseconds) }); created++; }
       catch (error) { if (error.code === 6 || error.code === 'already-exists') preserved++; else throw error; }
     }
     console.log(`Restauração: ${created} criados; ${preserved} documentos existentes preservados. Contas e administradores não foram alterados.`);

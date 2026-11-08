@@ -1,13 +1,13 @@
 # Sites de casamento · Onda de Ideias
 
-Layouts independentes, com formulário RSVP, login e painel compartilhados. Código no GitHub; hospedagem no Cloudflare Pages; Firebase exclusivo para cada casamento real.
+Layouts independentes, com formulário RSVP, login e painel compartilhados. Código no GitHub; hospedagem no Cloudflare Pages; Firebase compartilhado com dados e permissões separados por casamento.
 
 | Site | Identidade | Dados | Publicação |
 | --- | --- | --- | --- |
 | `test` | Bruna e Rai, clássico | Firebase `wedding-app-onda` | https://test.ondadeideias.com |
 | `demo-moderno` | Helena & Tomás, editorial | Exemplos e respostas somente nesta aba | https://onda-wedding-demo-moderno.pages.dev |
 
-O segundo site é uma demonstração: personagens e evento fictícios, sem pagamentos, sem backend e sem acesso a convidados reais. Seu subdomínio `demo-moderno.ondadeideias.com` depende do CNAME no Squarespace. Para ativar um Firebase real nele, é necessário um projeto Google separado; a conta de serviço local não tem autorização para criar projetos sem organização/pasta.
+O segundo site é uma demonstração: personagens e evento fictícios, sem pagamentos, sem backend e sem acesso a convidados reais. Seu subdomínio `demo-moderno.ondadeideias.com` depende do CNAME no Squarespace. Para ativar dados reais nele, cadastre seu weddingId no Firebase compartilhado e altere seu modo para firebase; nenhum novo projeto Google é necessário.
 
 ## Estrutura
 
@@ -43,7 +43,7 @@ npm install
 npm run dev --workspace @wedding/nome-do-casal
 ```
 
-O gerador não sobrescreve pastas, não copia `.env.local` ou credenciais e cadastra o site no pipeline. Personalize `src/content.js`, `src/App.jsx`, estilos, imagens e `index.html` antes de entregar. O modo inicial é demo. Use `--firebase-project PROJETO_EXCLUSIVO` para preparar um casamento real e configure seus Secrets no ambiente GitHub próprio.
+O gerador não sobrescreve pastas, não copia `.env.local` ou credenciais e cadastra o site no pipeline. Personalize `src/content.js`, `src/App.jsx`, estilos, imagens e `index.html` antes de entregar. O modo inicial é demo. Use `--firebase` para preparar um casamento real e configure seus Secrets no ambiente GitHub próprio.
 
 ## Verificação
 
@@ -65,13 +65,13 @@ Para testar o Firebase real, defina `E2E_FIREBASE_LIVE=1`, `E2E_FIREBASE_PROJECT
 
 Abra um pull request. O check `quality` reúne lint, unitários, regras, auditoria de produção, testes e build dos dois layouts. PRs humanos do próprio repositório recebem prévias Cloudflare em modo demo, sem dados reais. Forks e atualizações do Dependabot executam os testes sem acessar o token de publicação. O merge em main publica cada site no seu próprio projeto Pages.
 
-A configuração vem de `sites.json`: não é necessário editar a matriz YAML ao adicionar um site. Projetos Firebase e domínios duplicados são recusados. Configure em GitHub Actions:
+A configuração vem de `sites.json`: não é necessário editar a matriz YAML ao adicionar um site. Todos os sites reais usam o Firebase declarado na raiz de sites.json. Identificadores de casamento, projetos Cloudflare e domínios duplicados são recusados. Configure em GitHub Actions:
 
 - Variable `CLOUDFLARE_ACCOUNT_ID` e Secret `CLOUDFLARE_API_TOKEN` com Account → Cloudflare Pages → Edit.
 - Em `site-<id>`, os seis Secrets VITE_FIREBASE_* e a chave pública de App Check, quando aplicável, para sites reais.
 - Confira se VITE_FIREBASE_PROJECT_ID corresponde ao cadastro. O build falha em caso de projeto diferente, configuração incompleta ou credenciais em um build demonstrativo.
 
-O deploy do site não publica regras Firestore. Para cada novo Firebase, publique `firestore.rules` explicitamente com `npm run firebase:rules:deploy -- --project PROJETO`. As regras validam campos, tipos, limites e timestamp, bloqueiam alterações de respostas e restringem leitura aos administradores.
+O deploy do site não publica regras Firestore. No Firebase compartilhado, publique `firestore.rules` explicitamente com `npm run firebase:rules:deploy -- --project PROJETO`. As regras validam campos, tipos, limites e timestamp, bloqueiam alterações de respostas e restringem leitura aos administradores.
 
 ## Operação
 
@@ -80,3 +80,9 @@ O deploy do site não publica regras Firestore. Para cada novo Firebase, publiqu
 O workflow **Site health and rollback** verifica disponibilidade a cada seis horas e permite consultar/restaurar deployments. **Diagnose Cloudflare custom domain** consulta o estado do certificado sem expor o token. Dependabot prepara atualizações semanais. Falhas e relatórios ficam no GitHub Actions; uma ferramenta externa de erros de navegador exige configuração própria.
 
 As fotografias ilustrativas e suas fontes estão em [ASSETS.md](sites/demo-moderno/ASSETS.md). `TASK1.md` preserva a especificação original.
+
+## Firebase compartilhado
+
+Cada `site.json` contém um `weddingId` fixado no build. As respostas ficam em `weddings/{weddingId}/rsvp_responses/{id}`; as permissões, em `weddings/{weddingId}/members/{uid}` com `role: owner|admin` e `enabled: true`. O cadastro `weddings/{weddingId}` contém apenas metadados públicos e `active` controla novas confirmações. Nenhum cliente pode alterar membros, eventos ou respostas existentes. As regras conferem a associação ao casamento: trocar o identificador no navegador não concede acesso a convidados de outro evento. A mesma conta pode ter associações independentes a vários casamentos.
+
+Para um novo evento real: gere o site com `--firebase`, reutilize a configuração Web do projeto compartilhado, execute `npm run wedding:create -- --project wedding-app-onda --wedding ID --title "Casal" --active` e cadastre seus administradores. Sem `--active`, novos eventos nascem fechados. Demonstrações permanecem locais e sem backend. Contas, quotas e cobrança são compartilhadas; as permissões de convidados são isoladas pelas regras, não pelo domínio.

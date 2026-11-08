@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-vi.mock('@wedding/core/lib/site.js', () => ({ siteId: 'unit-demo', demoMode: true }));
+vi.mock('@wedding/core/lib/site.js', () => ({ siteId: 'unit-demo', weddingId: 'unit-demo', demoMode: true }));
 import { readDemoResponses, saveDemoResponse, resetDemo } from '@wedding/core/lib/demo.js';
 import { submitRsvp, loadResponses } from '@wedding/core/services/rsvpService.js';
 beforeEach(() => sessionStorage.clear());

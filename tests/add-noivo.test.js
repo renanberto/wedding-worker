@@ -5,13 +5,16 @@ const missing = () => Object.assign(new Error('missing'), { code: 'auth/user-not
 function fixture(user) {
   const create = vi.fn().mockResolvedValue(undefined);
   const doc = vi.fn().mockReturnValue({ create });
-  const collection = vi.fn().mockReturnValue({ doc });
+  const members = vi.fn().mockReturnValue({ doc });
+  const wedding = { get: vi.fn().mockResolvedValue({ exists: true }), collection: members };
+  const weddingDoc = vi.fn().mockReturnValue(wedding);
+  const collection = vi.fn().mockReturnValue({ doc: weddingDoc });
   return {
     auth: {
       getUserByEmail: user ? vi.fn().mockResolvedValue(user) : vi.fn().mockRejectedValue(missing()),
       createUser: vi.fn().mockResolvedValue({ uid: 'new-uid', email: 'noiva@example.com' }),
     },
-    db: { collection }, email: 'noiva@example.com', displayName: 'Noiva',
+    db: { collection }, weddingId: 'test', wedding, members, weddingDoc, email: 'noiva@example.com', displayName: 'Noiva',
     getPassword: vi.fn().mockResolvedValue('senha-de-teste'), timestamp: () => 'server-time',
     create, doc, collection,
   };
@@ -22,9 +25,11 @@ describe('cadastro administrativo dos noivos', () => {
     const f = fixture();
     await expect(provisionNoivo(f)).resolves.toEqual({ uid: 'new-uid', created: true });
     expect(f.auth.createUser).toHaveBeenCalledWith({ email: f.email, password: 'senha-de-teste', displayName: 'Noiva' });
-    expect(f.collection).toHaveBeenCalledWith('admins');
+    expect(f.collection).toHaveBeenCalledWith('weddings');
+    expect(f.weddingDoc).toHaveBeenCalledWith('test');
+    expect(f.members).toHaveBeenCalledWith('members');
     expect(f.doc).toHaveBeenCalledWith('new-uid');
-    expect(f.create).toHaveBeenCalledWith({ email: f.email, createdAt: 'server-time' });
+    expect(f.create).toHaveBeenCalledWith({ email: f.email, role: 'admin', enabled: true, createdAt: 'server-time' });
   });
   it('reutiliza conta e autorização sem alterar senha ou metadados', async () => {
     const f = fixture({ uid: 'existing', email: 'noiva@example.com', providerData: [{ providerId: 'password' }] });
@@ -69,8 +74,10 @@ describe('cadastro administrativo dos noivos', () => {
     expect(() => parseOptions(['--email', 'inválido'], 'project')).toThrow('e-mail');
     expect(() => parseOptions(['--email', 'noiva@example.com'])).toThrow('--project');
     expect(() => parseOptions(['--email', 'noiva@example.com', '--password', 'secret'], 'project')).toThrow();
-    expect(parseOptions(['--email', ' noiva@example.com ', '--project', 'other'], 'default')).toEqual({
-      email: 'noiva@example.com', projectId: 'other', displayName: undefined,
+    expect(parseOptions(['--email', ' noiva@example.com ', '--project', 'other'], 'default', 'test')).toEqual({
+      email: 'noiva@example.com', projectId: 'other', weddingId: 'test', role: 'admin', displayName: undefined,
     });
   });
 });
+
+it('recusa casamento ausente antes de criar conta', async () => { const f = fixture(); f.wedding.get.mockResolvedValue({ exists: false }); await expect(provisionNoivo(f)).rejects.toThrow('Crie o casamento'); expect(f.auth.createUser).not.toHaveBeenCalled(); });

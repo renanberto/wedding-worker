@@ -7,7 +7,7 @@ vi.mock('firebase/auth', () => ({
   onAuthStateChanged: (_auth, listener) => { mocks.listener = listener; return () => {}; },
   setPersistence: mocks.persistence, signInWithEmailAndPassword: mocks.signIn, signOut: mocks.signOut,
 }));
-vi.mock('firebase/firestore', () => ({ doc: (_db, collection, uid) => `${collection}/${uid}`, getDoc: mocks.getDoc }));
+vi.mock('firebase/firestore', () => ({ doc: (_db, ...path) => path.join('/'), getDoc: mocks.getDoc }));
 import { AuthProvider, useAuth } from '@wedding/core/contexts/AuthContext.jsx';
 function Session() {
   const { user, isAdmin, loading, login, logout } = useAuth();
@@ -15,11 +15,11 @@ function Session() {
 }
 beforeEach(() => vi.clearAllMocks());
 it('valida UID em documento protegido e encerra sessão', async () => {
-  mocks.getDoc.mockResolvedValue({ exists: () => true });
+  mocks.getDoc.mockResolvedValue({ exists: () => true, data: () => ({ enabled: true, role: 'admin' }) });
   render(<AuthProvider><Session /></AuthProvider>);
   expect(screen.getByText('verificando')).toBeInTheDocument();
   await act(() => mocks.listener({ uid: 'allowed' }));
-  expect(mocks.getDoc).toHaveBeenCalledWith('admins/allowed');
+  expect(mocks.getDoc).toHaveBeenCalledWith('weddings/test/members/allowed');
   expect(screen.getByText('autorizado')).toBeInTheDocument();
   fireEvent.click(screen.getByText('Sair'));
   expect(mocks.signOut).toHaveBeenCalled();
@@ -47,6 +47,6 @@ it('ignora autorização antiga se o usuário sair durante a leitura', async () 
   let pending;
   act(() => { pending = mocks.listener({ uid: 'allowed' }); });
   await act(() => mocks.listener(null));
-  await act(async () => { finish({ exists: () => true }); await pending; });
+  await act(async () => { finish({ exists: () => true, data: () => ({ enabled: true, role: 'admin' }) }); await pending; });
   expect(screen.getByText('visitante')).toBeInTheDocument();
 });

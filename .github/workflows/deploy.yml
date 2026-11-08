@@ -109,6 +109,7 @@ jobs:
         run: npm run env:check --workspace "${{ matrix.workspace }}" -- production && npm run build --workspace "${{ matrix.workspace }}"
         env:
           EXPECTED_FIREBASE_PROJECT_ID: ${{ matrix.firebaseProject }}
+          EXPECTED_WEDDING_ID: ${{ matrix.weddingId }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
