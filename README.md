@@ -22,7 +22,7 @@ scripts/                           criação de sites, ambiente, backup e opera�
 
 ## Desenvolvimento
 
-Use Node.js 22. Na raiz:
+Use Node.js 24 LTS (versão fixada em `.nvmrc`) e npm 11. Na raiz:
 
 ```bash
 npm ci
