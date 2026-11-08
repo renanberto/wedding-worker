@@ -8,7 +8,8 @@
       "firebaseProject": "wedding-app-onda",
       "domain": "test.ondadeideias.com",
       "heading": "Bruna e Rai",
-      "domainActive": true
+      "domainActive": true,
+      "weddingId": "test"
     },
     {
       "id": "demo-moderno",
@@ -18,7 +19,9 @@
       "firebaseProject": "",
       "domain": "demo-moderno.ondadeideias.com",
       "heading": "Helena & Tom\u00e1s",
-      "domainActive": false
+      "domainActive": false,
+      "weddingId": "demo-moderno"
     }
-  ]
+  ],
+  "firebaseProject": "wedding-app-onda"
 }

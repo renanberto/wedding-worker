@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { browserLocalPersistence, onAuthStateChanged, sendPasswordResetEmail, setPersistence, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
-import { demoMode, siteId } from '../lib/site';
+import { demoMode, siteId, weddingId } from '../lib/site';
+import { hasWeddingAccess } from '../lib/wedding';
 
 const AuthContext = createContext(null);
 // O estado React apenas controla a interface. As regras autorizam cada leitura.
@@ -28,7 +29,10 @@ function FirebaseAuthProvider({ children }) {
       setSession({ user: null, isAdmin: false, loading: true });
       let isAdmin = false;
       if (user) {
-        try { isAdmin = (await getDoc(doc(db, 'admins', user.uid))).exists(); }
+        try {
+          const membership = await getDoc(doc(db, 'weddings', weddingId, 'members', user.uid));
+          isAdmin = membership.exists() && hasWeddingAccess(membership.data());
+        }
         catch { isAdmin = false; }
       }
       if (current === generation) setSession({ user, isAdmin, loading: false });

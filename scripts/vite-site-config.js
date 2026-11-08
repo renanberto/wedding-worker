@@ -2,8 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
+import { validateWeddingId } from '../packages/wedding-core/src/lib/wedding.js';
 export function weddingSiteConfig(configUrl) {
   const site = JSON.parse(readFileSync(new URL('./site.json', configUrl), 'utf8'));
+  validateWeddingId(site.weddingId);
   const mode = process.env.VITE_SITE_MODE || site.mode;
   const demo = mode === 'demo';
   return defineConfig({
@@ -22,7 +24,7 @@ ${demo || !site.indexable ? '  X-Robots-Tag: noindex, nofollow\n' : ''}` });
         this.emitFile({ type: 'asset', fileName: 'robots.txt', source: demo || !site.indexable ? 'User-agent: *\nDisallow: /\n' : 'User-agent: *\nAllow: /\nDisallow: /admin/\n' });
       },
     }],
-    define: { 'import.meta.env.VITE_SITE_MODE': JSON.stringify(mode), 'import.meta.env.VITE_SITE_ID': JSON.stringify(site.id) },
+    define: { 'import.meta.env.VITE_SITE_MODE': JSON.stringify(mode), 'import.meta.env.VITE_SITE_ID': JSON.stringify(site.id), 'import.meta.env.VITE_WEDDING_ID': JSON.stringify(site.weddingId) },
     server: { fs: { allow: [fileURLToPath(new URL('../../', configUrl))] } },
     base: process.env.SITE_BASE_PATH || '/',
     build: { outDir: 'dist', sourcemap: false },

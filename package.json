@@ -23,7 +23,9 @@
     "guests:backup": "node scripts/guest-backup.js backup",
     "guests:restore": "node scripts/guest-backup.js restore",
     "sites:check": "node scripts/check-sites.js",
-    "noivos:revoke": "node scripts/revoke-admin.js"
+    "noivos:revoke": "node scripts/revoke-admin.js",
+    "wedding:create": "node scripts/create-wedding.js",
+    "wedding:migrate": "node scripts/migrate-legacy.js"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

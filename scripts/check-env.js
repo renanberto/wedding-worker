@@ -4,6 +4,9 @@ import { readFileSync } from 'node:fs';
 const mode = process.argv[2] || 'development';
 const env = loadEnv(mode, process.cwd(), 'VITE_');
 const site = JSON.parse(readFileSync('site.json', 'utf8'));
+if (process.env.EXPECTED_WEDDING_ID && site.weddingId !== process.env.EXPECTED_WEDDING_ID) {
+  throw new Error('O casamento não corresponde ao site selecionado.');
+}
 const demo = (env.VITE_SITE_MODE || site.mode) === 'demo';
 const required = [
   'VITE_FIREBASE_API_KEY', 'VITE_FIREBASE_AUTH_DOMAIN', 'VITE_FIREBASE_PROJECT_ID',

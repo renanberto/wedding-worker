@@ -10,10 +10,15 @@ import { getFirestore } from 'firebase-admin/firestore';
 test.describe('Firebase real: RSVP e autorização', () => {
   test.skip(process.env.E2E_FIREBASE_LIVE !== '1', 'Exige autorização e credencial administrativa local.');
   test.describe.configure({ mode: 'serial' });
+  test.setTimeout(60000);
   const marker = `E2E-${randomUUID()}`;
   const password = randomBytes(24).toString('base64url');
   const accounts = [];
   let app, db, admin, visitor;
+  const weddingId = process.env.E2E_WEDDING_ID || 'test';
+  const responsesRef = () => db.collection('weddings').doc(weddingId).collection('rsvp_responses');
+  const members = () => db.collection('weddings').doc(weddingId).collection('members');
+  const otherWeddingId = `e2e-${randomUUID()}`;
   test.beforeAll(async () => {
     const credentials = JSON.parse(await readFile(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
     // Prevent tests from writing into a different Firebase than the site being tested.
@@ -27,17 +32,21 @@ test.describe('Firebase real: RSVP e autorização', () => {
     accounts.push(admin.uid);
     visitor = await auth.createUser({ email: `${marker.toLowerCase()}-visitor@example.com`, password });
     accounts.push(visitor.uid);
-    await db.collection('admins').doc(admin.uid).create({ testRun: marker });
+    await members().doc(admin.uid).create({ testRun: marker, role: 'admin', enabled: true });
+    await db.collection('weddings').doc(otherWeddingId).create({ active: true, title: marker });
+    await db.collection('weddings').doc(otherWeddingId).collection('members').doc(visitor.uid).create({ role: 'owner', enabled: true });
   });
   test.afterAll(async () => {
     if (!app) return;
     try {
       const results = await Promise.allSettled([
         (async () => {
-          const responses = await db.collection('rsvp_responses').where('message', '==', marker).get();
+          const responses = await responsesRef().where('message', '==', marker).get();
           await Promise.all(responses.docs.map(doc => doc.ref.delete()));
         })(),
-        ...(admin ? [db.collection('admins').doc(admin.uid).delete()] : []),
+        ...(admin ? [members().doc(admin.uid).delete()] : []),
+        ...(visitor ? [db.collection('weddings').doc(otherWeddingId).collection('members').doc(visitor.uid).delete()] : []),
+        db.collection('weddings').doc(otherWeddingId).delete(),
         ...accounts.map(uid => getAuth(app).deleteUser(uid)),
       ]);
       if (results.some(result => result.status === 'rejected')) {
@@ -53,7 +62,7 @@ test.describe('Firebase real: RSVP e autorização', () => {
     await page.getByLabel(/Mensagem aos noivos/).fill(marker);
     await page.getByRole('button', { name: /Enviar confirmação/ }).click();
     await expect(page.getByRole('heading', { name: 'Recebemos sua resposta!' })).toBeVisible({ timeout: 20000 });
-    const saved = await db.collection('rsvp_responses').where('message', '==', marker).get();
+    const saved = await responsesRef().where('message', '==', marker).get();
     expect(saved.size).toBe(1);
     expect(saved.docs[0].data()).toMatchObject({ name: marker, attendance: 'yes', guests: 2 });
     await page.goto('/#/admin/login');
@@ -68,7 +77,7 @@ test.describe('Firebase real: RSVP e autorização', () => {
     await page.getByRole('button', { name: 'Sair', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Área dos noivos' })).toBeVisible();
   });
-  test('recusa conta autenticada sem autorização administrativa', async ({ page }) => {
+  test('recusa administrador de outro casamento', async ({ page }) => {
     await page.goto('/#/admin/login');
     await page.getByLabel('E-mail', { exact: true }).fill(visitor.email);
     await page.getByLabel('Senha', { exact: true }).fill(password);
@@ -76,5 +85,26 @@ test.describe('Firebase real: RSVP e autorização', () => {
     await expect(page.getByRole('alert')).toContainText('Esta conta não possui acesso administrativo.', { timeout: 20000 });
     await page.goto('/#/admin');
     await expect(page.getByRole('heading', { name: 'Área dos noivos' })).toBeVisible();
+  });
+  test('SDK cliente confirma isolamento mesmo alterando o caminho manualmente', async () => {
+    const { loadEnv } = await import('vite');
+    const env = loadEnv('development', `${process.cwd()}/sites/test`, 'VITE_');
+    const web = await import('firebase/app');
+    const authSdk = await import('firebase/auth');
+    const firestore = await import('firebase/firestore');
+    const client = web.initializeApp({ apiKey: env.VITE_FIREBASE_API_KEY, projectId: env.VITE_FIREBASE_PROJECT_ID }, marker);
+    const clientDb = firestore.getFirestore(client);
+    try {
+      await authSdk.signInWithEmailAndPassword(authSdk.getAuth(client), visitor.email, password);
+      await expect(firestore.getDocs(firestore.collection(clientDb, 'weddings', otherWeddingId, 'rsvp_responses'))).resolves.toBeDefined();
+      await expect(firestore.getDocs(firestore.collection(clientDb, 'weddings', weddingId, 'rsvp_responses'))).rejects.toMatchObject({ code: 'permission-denied' });
+      await expect(firestore.setDoc(firestore.doc(clientDb, 'weddings', weddingId, 'members', visitor.uid), { enabled: true, role: 'owner' })).rejects.toMatchObject({ code: 'permission-denied' });
+      if (process.env.E2E_EXPECT_FINAL_RULES === '1') {
+        const ref = firestore.doc(clientDb, 'rsvp_responses', marker);
+        try {
+          await expect(firestore.setDoc(ref, { name: marker, message: marker, attendance: 'yes', guests: 1, createdAt: firestore.serverTimestamp() })).rejects.toMatchObject({ code: 'permission-denied' });
+        } finally { await db.collection('rsvp_responses').doc(marker).delete(); }
+      }
+    } finally { await firestore.terminate(clientDb); await web.deleteApp(client); }
   });
 });

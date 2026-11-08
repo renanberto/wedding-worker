@@ -1,5 +1,5 @@
 import { validateRsvp } from '../lib/rsvp';
-import { demoMode } from '../lib/site';
+import { demoMode, weddingId } from '../lib/site';
 
 // O site público só baixa o SDK quando há um envio; o painel o carrega ao abrir.
 async function getServices() {
@@ -16,7 +16,7 @@ export async function submitRsvp(values) {
   try {
     const { db, addDoc, collection, serverTimestamp } = await getServices();
     if (!db) throw new Error('Firebase não configurado.');
-    await addDoc(collection(db, 'rsvp_responses'), { ...data, createdAt: serverTimestamp() });
+    await addDoc(collection(db, 'weddings', weddingId, 'rsvp_responses'), { ...data, createdAt: serverTimestamp() });
   } catch (cause) {
     // Só o código técnico vai para o console: nunca os dados do convidado.
     const code = typeof cause?.code === 'string' ? cause.code : 'rsvp/unknown';
@@ -36,6 +36,6 @@ export async function loadResponses() {
   }
   const { db, getDocs, query, collection, orderBy } = await getServices();
   if (!db) throw new Error('Firebase não configurado.');
-  const snapshot = await getDocs(query(collection(db, 'rsvp_responses'), orderBy('createdAt', 'desc')));
+  const snapshot = await getDocs(query(collection(db, 'weddings', weddingId, 'rsvp_responses'), orderBy('createdAt', 'desc')));
   return snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
 }

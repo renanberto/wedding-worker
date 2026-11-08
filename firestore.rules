@@ -1,17 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Documentos admins/{UID} são criados SOMENTE pelo Console/Admin SDK.
-    function isAdmin() {
-      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    function isWeddingAdmin(weddingId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/weddings/$(weddingId)/members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/weddings/$(weddingId)/members/$(request.auth.uid)).data.enabled == true
+        && get(/databases/$(database)/documents/weddings/$(weddingId)/members/$(request.auth.uid)).data.role in ['owner', 'admin'];
     }
-    match /admins/{uid} {
-      allow get: if request.auth != null && request.auth.uid == uid;
-      allow list, create, update, delete: if false;
+    function acceptsRsvp(weddingId) {
+      return exists(/databases/$(database)/documents/weddings/$(weddingId))
+        && get(/databases/$(database)/documents/weddings/$(weddingId)).data.active == true;
     }
-    match /rsvp_responses/{responseId} {
-      allow read: if isAdmin();
-      allow create: if request.resource.data.keys().hasAll(['name', 'attendance', 'guests', 'message', 'createdAt'])
+    function validRsvp() {
+      return request.resource.data.keys().hasAll(['name', 'attendance', 'guests', 'message', 'createdAt'])
         && request.resource.data.keys().hasOnly(['name', 'attendance', 'guests', 'message', 'createdAt'])
         && request.resource.data.name is string
         && request.resource.data.name.size() <= 120
@@ -22,7 +23,22 @@ service cloud.firestore {
           || (request.resource.data.attendance == 'yes' && request.resource.data.guests >= 1 && request.resource.data.guests <= 10))
         && request.resource.data.message is string && request.resource.data.message.size() <= 1000
         && request.resource.data.createdAt is timestamp && request.resource.data.createdAt == request.time;
-      allow update, delete: if false;
     }
+    match /weddings/{weddingId} {
+      // Somente metadados públicos do evento; informações de membros ficam na subcoleção.
+      allow get: if resource.data.active == true || isWeddingAdmin(weddingId);
+      allow list, create, update, delete: if false;
+      match /members/{uid} {
+        allow get: if request.auth != null && request.auth.uid == uid;
+        allow list, create, update, delete: if false;
+      }
+      match /rsvp_responses/{responseId} {
+        allow read: if isWeddingAdmin(weddingId);
+        allow create: if acceptsRsvp(weddingId) && validRsvp();
+        allow update, delete: if false;
+      }
+    }
+    // LEGACY_COMPATIBILITY
+    // Sem permissões para admins/ ou rsvp_responses/ na raiz.
   }
 }

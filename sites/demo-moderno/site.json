@@ -1,5 +1,6 @@
 {
   "id": "demo-moderno",
   "mode": "demo",
-  "indexable": false
+  "indexable": false,
+  "weddingId": "demo-moderno"
 }

@@ -2,12 +2,15 @@ import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
+import { readFile } from 'node:fs/promises';
+import { validateWeddingId } from '../packages/wedding-core/src/lib/wedding.js';
+import { resolveWedding } from './wedding-admin.js';
 
 const help = `Cadastrar uma conta dos noivos e autorizar o painel administrativo.
 
 Uso:
   npm run noivos:add -- --email pessoa@example.com --name "Nome"
-  npm run noivos:add -- --project SEU_PROJECT_ID --email pessoa@example.com
+  npm run noivos:add -- --project SEU_PROJECT_ID --wedding CASAMENTO --email pessoa@example.com
 
 O projeto padrão vem de VITE_FIREBASE_PROJECT_ID no ambiente/.env.local.
 Autenticação administrativa: GOOGLE_APPLICATION_CREDENTIALS (arquivo fora do repo).
@@ -16,9 +19,9 @@ Contas existentes mantêm a senha e o perfil; contas desabilitadas são recusada
 Repita o comando para cada noivo/noiva. Nenhum e-mail é enviado pelo script.
 `;
 
-export function parseOptions(args, defaultProject) {
+export function parseOptions(args, defaultProject, defaultWedding) {
   const { values } = parseArgs({ args, options: {
-    email: { type: 'string' }, name: { type: 'string' }, project: { type: 'string' },
+    email: { type: 'string' }, name: { type: 'string' }, project: { type: 'string' }, wedding: { type: 'string' }, role: { type: 'string', default: 'admin' },
     help: { type: 'boolean', short: 'h' },
   } });
   if (values.help) return { help: true };
@@ -26,13 +29,19 @@ export function parseOptions(args, defaultProject) {
   const projectId = (values.project || defaultProject)?.trim();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Informe --email com um e-mail válido.');
   if (!projectId) throw new Error('Informe --project ou configure VITE_FIREBASE_PROJECT_ID em .env.local.');
+  const weddingId = validateWeddingId(values.wedding || defaultWedding);
+  if (!['owner', 'admin'].includes(values.role)) throw new Error('--role deve ser owner ou admin.');
   if (values.name !== undefined && (!values.name.trim() || values.name.trim().length > 256)) {
     throw new Error('--name deve conter de 1 a 256 caracteres.');
   }
-  return { email, projectId, displayName: values.name?.trim() };
+  return { email, projectId, weddingId, role: values.role, displayName: values.name?.trim() };
 }
 
-export async function provisionNoivo({ auth, db, email, displayName, getPassword, timestamp, onCreated = () => {} }) {
+export async function provisionNoivo({ auth, db, email, displayName, weddingId, role = 'admin', getPassword, timestamp, onCreated = () => {} }) {
+  validateWeddingId(weddingId);
+  if (!['owner', 'admin'].includes(role)) throw new Error('Papel administrativo inválido.');
+  const wedding = db.collection('weddings').doc(weddingId);
+  if (!(await wedding.get()).exists) throw new Error('Crie o casamento antes de conceder acesso.');
   let user;
   let created = false;
   try { user = await auth.getUserByEmail(email); }
@@ -52,7 +61,7 @@ export async function provisionNoivo({ auth, db, email, displayName, getPassword
   }
   // create() preserva os metadados existentes e permite reexecutar após falha parcial.
   try {
-    await db.collection('admins').doc(user.uid).create({ email: user.email, createdAt: timestamp() });
+    await wedding.collection('members').doc(user.uid).create({ email: user.email, role, enabled: true, createdAt: timestamp() });
   } catch (error) {
     if (error.code !== 6 && error.code !== 'already-exists') throw error;
   }
@@ -74,13 +83,16 @@ async function hiddenQuestion(label) {
 async function main() {
   const { loadEnv } = await import('vite');
   const env = loadEnv('development', process.cwd(), 'VITE_');
-  const options = parseOptions(process.argv.slice(2), env.VITE_FIREBASE_PROJECT_ID);
+  let site;
+  try { site = JSON.parse(await readFile('site.json', 'utf8')); } catch { /* --wedding and --project can be explicit */ }
+  const options = parseOptions(process.argv.slice(2), env.VITE_FIREBASE_PROJECT_ID, site?.weddingId);
   if (options.help) { console.log(help); return; }
   // Evita cadastrar Auth e admins em ambientes diferentes por variáveis esquecidas.
   if (process.env.FIREBASE_AUTH_EMULATOR_HOST || process.env.FIRESTORE_EMULATOR_HOST) {
     throw new Error('Remova FIREBASE_AUTH_EMULATOR_HOST e FIRESTORE_EMULATOR_HOST; este comando cadastra no projeto real.');
   }
-  console.log(`Projeto Firebase: ${options.projectId}`);
+  await resolveWedding(options.projectId, options.weddingId);
+  console.log(`Projeto Firebase: ${options.projectId}; casamento: ${options.weddingId}`);
   const { initializeApp, applicationDefault, deleteApp } = await import('firebase-admin/app');
   const { getAuth } = await import('firebase-admin/auth');
   const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
