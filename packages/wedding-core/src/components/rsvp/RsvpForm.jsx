@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { ArrowRight, Check, Send } from 'lucide-react';
 import { submitRsvp } from '../../services/rsvpService';
 import { RSVP_LIMITS } from '../../lib/rsvp';
+import { demoMode } from '../../lib/site';
 
 const emptyForm = { name: '', attendance: '', guests: '1', message: '', website: '' };
 export default function RsvpForm() {
@@ -31,6 +32,6 @@ export default function RsvpForm() {
       <label htmlFor="message">Mensagem aos noivos <span className="optional">(opcional)</span></label><textarea id="message" name="message" rows="3" maxLength={RSVP_LIMITS.message} value={values.message} onChange={e=>set('message',e.target.value)} placeholder="Deixe uma mensagem carinhosa..." />
       {state === 'error' && <p className="form-error" role="alert">{error}</p>}
       <button type="submit" className="button-primary" disabled={state === 'sending'}>{state === 'sending' ? 'Enviando...' : 'Enviar confirmação'} <Send size={17} /></button>
-      <p className="privacy-note">Seus dados serão usados apenas para organizar as confirmações deste evento.</p>
+      <p className="privacy-note">{demoMode ? 'Demonstração: use dados fictícios. Sua resposta fica somente nesta aba e não é enviada a um servidor.' : 'Seus dados serão usados apenas para organizar as confirmações deste evento.'}</p>
     </form>}</div>;
 }

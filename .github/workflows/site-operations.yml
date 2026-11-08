@@ -1,0 +1,39 @@
+name: Site health and rollback
+on:
+  schedule:
+    - cron: '15 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options: [health, status, rollback]
+        default: health
+      site:
+        type: string
+        default: test
+      deployment_id:
+        type: string
+        required: false
+permissions:
+  contents: read
+jobs:
+  operations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+      - name: Check site availability
+        if: github.event_name == 'schedule' || inputs.operation == 'health'
+        run: node scripts/check-sites.js
+      - name: Inspect deployments or restore production
+        if: github.event_name == 'workflow_dispatch' && inputs.operation != 'health'
+        run: node scripts/pages-operations.js "$OPERATION" "$SITE" "$DEPLOYMENT_ID"
+        env:
+          OPERATION: ${{ inputs.operation }}
+          SITE: ${{ inputs.site }}
+          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -1,67 +1,114 @@
 name: Test and deploy wedding sites to Cloudflare Pages
-
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
   group: cloudflare-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
-  checks:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.sites.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+      - id: sites
+        run: echo "matrix=$(node scripts/site-config.js matrix)" >> "$GITHUB_OUTPUT"
+  unit-and-security:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version-file: '.nvmrc'
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm test
+      - run: npm audit --omit=dev --audit-level=moderate
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
       - run: npm run test:rules
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
-
-  deploy:
-    if: github.event_name != 'pull_request'
-    needs: checks
+  browser:
+    needs: plan
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        include:
-          - site: test
-            workspace: '@wedding/test'
-            project: onda-wedding-test
-            firebase_project: wedding-app-onda
-            domain: test.ondadeideias.com
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Check site navigation and shared components
+        run: npm run test:e2e
+        env:
+          E2E_SITE: ${{ matrix.id }}
+          E2E_HEADING: ${{ matrix.heading }}
+      - name: Build isolated review version
+        run: npm run build --workspace "${{ matrix.workspace }}"
+        env:
+          VITE_SITE_MODE: demo
+      - name: Check compiled site
+        run: npm run test:e2e
+        env:
+          E2E_SITE: ${{ matrix.id }}
+          E2E_HEADING: ${{ matrix.heading }}
+          E2E_PREVIEW: '1'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-${{ matrix.id }}
+          path: test-results/
+          retention-days: 7
+  quality:
+    if: always()
+    needs: [plan, unit-and-security, browser]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all checks
+        env:
+          PLAN: ${{ needs.plan.result }}
+          UNIT: ${{ needs.unit-and-security.result }}
+          BROWSER: ${{ needs.browser.result }}
+        run: test "$PLAN" = success && test "$UNIT" = success && test "$BROWSER" = success
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: [plan, quality]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     environment:
-      name: site-${{ matrix.site }}
+      name: site-${{ matrix.id }}
       url: ${{ steps.pages.outputs.url }}
     concurrency:
-      group: cloudflare-${{ matrix.site }}
+      group: cloudflare-site-${{ matrix.id }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version-file: '.nvmrc'
           cache: npm
       - run: npm ci --no-audit --no-fund
-      - name: Validate site configuration and build
+      - name: Validate Firebase and build
+        if: matrix.mode == 'firebase'
         run: npm run env:check --workspace "${{ matrix.workspace }}" -- production && npm run build --workspace "${{ matrix.workspace }}"
         env:
-          EXPECTED_FIREBASE_PROJECT_ID: ${{ matrix.firebase_project }}
+          EXPECTED_FIREBASE_PROJECT_ID: ${{ matrix.firebaseProject }}
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -69,6 +116,9 @@ jobs:
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_FIREBASE_APP_CHECK_SITE_KEY: ${{ secrets.VITE_FIREBASE_APP_CHECK_SITE_KEY }}
+      - name: Build demonstration without backend credentials
+        if: matrix.mode == 'demo'
+        run: npm run env:check --workspace "${{ matrix.workspace }}" -- production && npm run build --workspace "${{ matrix.workspace }}"
       - name: Ensure Cloudflare project exists
         id: pages
         run: node scripts/ensure-pages-project.js "${{ matrix.project }}"
@@ -76,25 +126,68 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - name: Publish site
-        id: publish
-        run: npx wrangler pages deploy "sites/${{ matrix.site }}/dist" --project-name "${{ matrix.project }}" --branch main
+        run: npx wrangler pages deploy "sites/${{ matrix.id }}/dist" --project-name "${{ matrix.project }}" --branch main
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           WRANGLER_SEND_METRICS: 'false'
       - name: Register custom domain
+        if: matrix.domain != ''
         run: node scripts/ensure-pages-project.js "${{ matrix.project }}" "${{ matrix.domain }}"
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - run: npx playwright install --with-deps chromium
       - name: Smoke tests on published site
-        run: npm run test:e2e -- --grep 'site público|entrada direta|clicar novamente'
+        run: node scripts/wait-site.js "$E2E_BASE_URL" && npm run test:e2e -- --grep 'site público|entrada direta|clicar novamente|demonstração|nova aba'
         env:
           E2E_BASE_URL: ${{ steps.pages.outputs.url }}
+          E2E_SITE: ${{ matrix.id }}
+          E2E_HEADING: ${{ matrix.heading }}
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: site-${{ matrix.site }}-reports
-          path: test-results/
-          if-no-files-found: ignore
+          name: site-${{ matrix.id }}-${{ github.sha }}
+          path: sites/${{ matrix.id }}/dist/
+          retention-days: 30
+  preview:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: [plan, quality]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    environment:
+      name: preview-${{ matrix.id }}
+      url: ${{ steps.preview.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build --workspace "${{ matrix.workspace }}"
+        env:
+          VITE_SITE_MODE: demo
+      - id: pages
+        run: node scripts/ensure-pages-project.js "${{ matrix.project }}"
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - run: npx wrangler pages deploy "sites/${{ matrix.id }}/dist" --project-name "${{ matrix.project }}" --branch "pr-${{ github.event.number }}"
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WRANGLER_SEND_METRICS: 'false'
+      - id: preview
+        env:
+          PAGES_URL: ${{ steps.pages.outputs.url }}
+          PR_NUMBER: ${{ github.event.number }}
+        run: node -e 'const fs=require("node:fs"); const url=new URL(process.env.PAGES_URL); url.hostname=`pr-${process.env.PR_NUMBER}.${url.hostname}`; fs.appendFileSync(process.env.GITHUB_OUTPUT, `url=${url.origin}\n`);'
+      - run: npx playwright install --with-deps chromium
+      - name: Check preview URL
+        run: node scripts/wait-site.js "$E2E_BASE_URL" && npm run test:e2e -- --grep 'site público|entrada direta|clicar novamente|demonstração|nova aba'
+        env:
+          E2E_BASE_URL: ${{ steps.preview.outputs.url }}
+          E2E_SITE: ${{ matrix.id }}
+          E2E_HEADING: ${{ matrix.heading }}

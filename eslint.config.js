@@ -5,7 +5,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
-  { ignores: ['**/dist/**', '**/.wrangler/**'] },
+  { ignores: ['**/dist/**', '**/.wrangler/**', 'test-results/**', 'playwright-report/**', '.firebase/**'] },
   js.configs.recommended,
   {
     files: ['**/*.{js,jsx}'],

@@ -1,0 +1,24 @@
+{
+  "sites": [
+    {
+      "id": "test",
+      "workspace": "@wedding/test",
+      "project": "onda-wedding-test",
+      "mode": "firebase",
+      "firebaseProject": "wedding-app-onda",
+      "domain": "test.ondadeideias.com",
+      "heading": "Bruna e Rai",
+      "domainActive": true
+    },
+    {
+      "id": "demo-moderno",
+      "workspace": "@wedding/demo-moderno",
+      "project": "onda-wedding-demo-moderno",
+      "mode": "demo",
+      "firebaseProject": "",
+      "domain": "demo-moderno.ondadeideias.com",
+      "heading": "Helena & Tom\u00e1s",
+      "domainActive": false
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { validateRsvp } from '../lib/rsvp';
+import { demoMode } from '../lib/site';
 
 // O site público só baixa o SDK quando há um envio; o painel o carrega ao abrir.
 async function getServices() {
@@ -7,6 +8,11 @@ async function getServices() {
 }
 export async function submitRsvp(values) {
   const data = validateRsvp(values);
+  if (demoMode) {
+    const { saveDemoResponse } = await import('../lib/demo');
+    saveDemoResponse(data);
+    return;
+  }
   try {
     const { db, addDoc, collection, serverTimestamp } = await getServices();
     if (!db) throw new Error('Firebase não configurado.');
@@ -24,6 +30,10 @@ export async function submitRsvp(values) {
   }
 }
 export async function loadResponses() {
+  if (demoMode) {
+    const { readDemoResponses } = await import('../lib/demo');
+    return readDemoResponses();
+  }
   const { db, getDocs, query, collection, orderBy } = await getServices();
   if (!db) throw new Error('Firebase não configurado.');
   const snapshot = await getDocs(query(collection(db, 'rsvp_responses'), orderBy('createdAt', 'desc')));

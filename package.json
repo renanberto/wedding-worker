@@ -15,9 +15,18 @@
     "env:check": "npm run env:check --workspace @wedding/test --",
     "noivos:add": "npm run noivos:add --workspace @wedding/test --",
     "firebase:rules:deploy": "firebase deploy --only firestore:rules",
-    "deploy:test": "wrangler pages deploy sites/test/dist --project-name onda-wedding-test --branch main"
+    "deploy:test": "wrangler pages deploy sites/test/dist --project-name onda-wedding-test --branch main",
+    "dev:demo": "npm run dev --workspace @wedding/demo-moderno --",
+    "build:all": "npm run build --workspaces --if-present",
+    "site:create": "node scripts/create-site.js",
+    "sites:list": "node scripts/site-config.js",
+    "guests:backup": "node scripts/guest-backup.js backup",
+    "guests:restore": "node scripts/guest-backup.js restore",
+    "sites:check": "node scripts/check-sites.js",
+    "noivos:revoke": "node scripts/revoke-admin.js"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^9.17.0",
     "@firebase/rules-unit-testing": "^6.0.0",
     "@playwright/test": "^1.65.0",
@@ -38,10 +47,20 @@
     "wrangler": "^4.158.0"
   },
   "overrides": {
-    "@grpc/grpc-js": "^1.13.6"
+    "@grpc/grpc-js": "^1.13.6",
+    "glob@>=9 <14.0.2": "^14.0.4",
+    "gaxios": {
+      "uuid": "^11.1.1"
+    },
+    "@google-cloud/pubsub": "^6.3.2"
   },
   "workspaces": [
     "sites/*",
     "packages/*"
-  ]
+  ],
+  "engines": {
+    "node": ">=24.12.0 <25",
+    "npm": ">=11 <12"
+  },
+  "packageManager": "npm@11.6.2"
 }

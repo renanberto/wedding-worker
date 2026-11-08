@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 const mocks = vi.hoisted(() => ({ listener: null, getDoc: vi.fn(), signIn: vi.fn(), signOut: vi.fn(), persistence: vi.fn() }));
 vi.mock('@wedding/core/lib/firebase.js', () => ({ auth: {}, db: {} }));
 vi.mock('firebase/auth', () => ({
-  browserLocalPersistence: 'LOCAL',
+  browserLocalPersistence: 'LOCAL', sendPasswordResetEmail: vi.fn(),
   onAuthStateChanged: (_auth, listener) => { mocks.listener = listener; return () => {}; },
   setPersistence: mocks.persistence, signInWithEmailAndPassword: mocks.signIn, signOut: mocks.signOut,
 }));
