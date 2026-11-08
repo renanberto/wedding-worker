@@ -5,6 +5,7 @@ it.each([
   ['/admin/', '/', '/#/admin'],
   ['/admin/login', '/', '/#/admin/login'],
   ['/admin/login/', '/', '/#/admin/login'],
+  ['/admin/presentes/', '/', '/#/admin/presentes'],
   ['/wedding-worker/admin', '/wedding-worker/', '/wedding-worker/#/admin'],
   ['/wedding-worker/admin/login/', '/wedding-worker/', '/wedding-worker/#/admin/login'],
 ])('normaliza entrada direta %s com base %s', (pathname, base, expected) => {
