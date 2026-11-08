@@ -14,7 +14,7 @@
     "@wedding/core": "*",
     "firebase": "^13.2.0",
     "lucide-react": "^0.468.0",
-    "react": "^18.3.1",
+    "react": "^19.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.18.5"
   }
