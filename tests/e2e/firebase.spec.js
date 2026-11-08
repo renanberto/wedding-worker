@@ -43,6 +43,10 @@ test.describe('Firebase real: RSVP e autorização', () => {
         (async () => {
           const responses = await responsesRef().where('message', '==', marker).get();
           await Promise.all(responses.docs.map(doc => doc.ref.delete()));
+          if (process.env.E2E_GIFTS_LIVE === '1') {
+            const gifts = await db.collection('weddings').doc(weddingId).collection('gifts').where('title', '==', marker).get();
+            await Promise.all(gifts.docs.map(doc => doc.ref.delete()));
+          }
         })(),
         ...(admin ? [members().doc(admin.uid).delete()] : []),
         ...(visitor ? [db.collection('weddings').doc(otherWeddingId).collection('members').doc(visitor.uid).delete()] : []),
@@ -86,6 +90,29 @@ test.describe('Firebase real: RSVP e autorização', () => {
     await page.goto('/#/admin');
     await expect(page.getByRole('heading', { name: 'Área dos noivos' })).toBeVisible();
   });
+  test('presentes: cadastro administrativo e catálogo público sem dados dos convidados', async ({ page }) => {
+    test.skip(process.env.E2E_GIFTS_LIVE !== '1', 'Exige Worker publicado; não envia e-mails.');
+    await page.goto('/#/admin/login');
+    await page.getByLabel('E-mail', { exact: true }).fill(admin.email);
+    await page.getByLabel('Senha', { exact: true }).fill(password);
+    await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+    await page.getByRole('link', { name: 'Gerenciar presentes' }).click();
+    await page.getByLabel('Título do presente').fill(marker);
+    await page.getByLabel('Descrição', { exact: true }).fill('Presente descartável de verificação.');
+    await page.getByRole('button', { name: 'Salvar presente' }).click();
+    const card = page.locator('.gift-card').filter({ has: page.getByRole('heading', { name: marker, exact: true }) });
+    await expect(card).toBeVisible({ timeout: 20000 });
+    const response = await page.request.get('/api/gifts');
+    expect(response.ok()).toBe(true);
+    const catalog = await response.json();
+    const gift = catalog.gifts.find(g => g.title === marker);
+    expect(gift.status).toBe('available');
+    expect(Object.keys(gift).sort()).toEqual(['description', 'id', 'imageUrl', 'status', 'title', 'url']);
+    await card.getByRole('button', { name: 'Arquivar', exact: true }).click();
+    await expect(card.getByText('Arquivado', { exact: true })).toBeVisible();
+    const archived = await (await page.request.get('/api/gifts')).json();
+    expect(archived.gifts.some(g => g.id === gift.id)).toBe(false);
+  });
   test('SDK cliente confirma isolamento mesmo alterando o caminho manualmente', async () => {
     const { loadEnv } = await import('vite');
     const env = loadEnv('development', `${process.cwd()}/sites/test`, 'VITE_');
@@ -96,6 +123,11 @@ test.describe('Firebase real: RSVP e autorização', () => {
     const clientDb = firestore.getFirestore(client);
     try {
       await authSdk.signInWithEmailAndPassword(authSdk.getAuth(client), visitor.email, password);
+      if (process.env.E2E_GIFTS_LIVE === '1') {
+        const token = await authSdk.getAuth(client).currentUser.getIdToken();
+        const denied = await fetch(`${process.env.E2E_BASE_URL}/api/gifts/admin`, { headers: { Authorization: `Bearer ${token}` } });
+        expect(denied.status).toBe(403);
+      }
       await expect(firestore.getDocs(firestore.collection(clientDb, 'weddings', otherWeddingId, 'rsvp_responses'))).resolves.toBeDefined();
       await expect(firestore.getDocs(firestore.collection(clientDb, 'weddings', weddingId, 'rsvp_responses'))).rejects.toMatchObject({ code: 'permission-denied' });
       await expect(firestore.setDoc(firestore.doc(clientDb, 'weddings', weddingId, 'members', visitor.uid), { enabled: true, role: 'owner' })).rejects.toMatchObject({ code: 'permission-denied' });

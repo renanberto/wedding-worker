@@ -1,9 +1,10 @@
 // @vitest-environment node
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { giftService } from '../server/gifts.js';
 import { createWorker } from '../server/worker.js';
 import { validateGift } from '../packages/wedding-core/src/lib/gifts.js';
 let store, service, mail, clock;
+afterEach(() => vi.unstubAllGlobals());
 const giftPath = 'weddings/alpha/gifts/item';
 function memoryStore() {
   const data = new Map(); let queue = Promise.resolve();
@@ -106,4 +107,21 @@ it('Worker não confirma por GET, recusa CSRF, JSON inválido e corpo excessivo'
   expect((await request('/reserve', { method: 'POST', headers, body: '{' })).status).toBe(400);
   expect((await request('/reserve', { method: 'POST', headers, body: JSON.stringify({ name: 'x'.repeat(9000) }) })).status).toBe(413);
   expect(mail).not.toHaveBeenCalled();
+});
+it('integra o Worker ao contrato do Resend e usa o link canônico com envio idempotente', async () => {
+  const provider = vi.fn().mockResolvedValue(Response.json({ id: 'test-email' }));
+  vi.stubGlobal('fetch', provider);
+  const origin = 'https://alpha.example.test';
+  const worker = createWorker({ weddingId: 'alpha', origin, allowedOrigins: [origin] }, { store, authorize: async () => 'admin' });
+  const env = { GIFTS_TOKEN_SECRET: 'x'.repeat(32), RESEND_API_KEY: 'test-only-key', GIFTS_FROM_EMAIL: 'Casal <presentes@example.test>' };
+  const response = await worker.fetch(new Request(`${origin}/api/gifts/reserve`, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(input()) }), env);
+  expect(response.status).toBe(200);
+  const [url, options] = provider.mock.calls[0];
+  expect(url).toBe('https://api.resend.com/emails');
+  expect(options.headers).toMatchObject({ Authorization: 'Bearer test-only-key', 'Idempotency-Key': expect.stringContaining('gift-alpha-') });
+  const payload = JSON.parse(options.body);
+  expect(payload).toMatchObject({ from: env.GIFTS_FROM_EMAIL, to: ['ana@example.test'] });
+  expect(payload.text).toContain(`${origin}/#/presentes/confirmar?reservation=`);
+  expect(payload.text).toContain('token=');
+  expect(JSON.stringify(await response.json())).not.toContain('token=');
 });
