@@ -14,7 +14,7 @@ Use `npm run site:create -- nome-do-casal --domain casal.ondadeideias.com`. O co
 
 ## Revisão e publicação
 
-Trabalhe em uma branch. O PR executa lint, testes unitários, auditoria de produção, regras Firestore e testes de navegador nos dois sites, inclusive no build compilado. O check `quality` reúne esses resultados. Em PRs de branches do próprio repositório, os ambientes `preview-<site>` mostram uma URL pr-N.PROJETO.pages.dev com dados somente demonstrativos. Forks não recebem o token Cloudflare e não publicam prévias.
+Trabalhe em uma branch. O PR executa lint, testes unitários, auditoria de produção, regras Firestore e testes de navegador nos dois sites, inclusive no build compilado. O check `quality` reúne esses resultados. Em PRs humanos de branches do próprio repositório, os ambientes `preview-<site>` mostram uma URL pr-N.PROJETO.pages.dev com dados somente demonstrativos. Forks e PRs automáticos do Dependabot não recebem o token Cloudflare e não publicam prévias; os testes de código e build continuam obrigatórios.
 
 A branch main publica após os checks. O ambiente `site-<site>` separa a configuração Firebase. O projeto declarado no cadastro deve corresponder ao Secret VITE_FIREBASE_PROJECT_ID; o build falha se forem diferentes. Para novos sites reais, configure os Secrets no ambiente específico: não confie no fallback de Secrets globais do repositório.
 

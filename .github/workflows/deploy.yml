@@ -150,7 +150,7 @@ jobs:
           path: sites/${{ matrix.id }}/dist/
           retention-days: 30
   preview:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
     needs: [plan, quality]
     runs-on: ubuntu-latest
     strategy:

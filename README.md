@@ -63,7 +63,7 @@ Para testar o Firebase real, defina `E2E_FIREBASE_LIVE=1`, `E2E_FIREBASE_PROJECT
 
 ## Revisão e publicação
 
-Abra um pull request. O check `quality` reúne lint, unitários, regras, auditoria de produção, testes e build dos dois layouts. PRs do próprio repositório recebem prévias Cloudflare em modo demo, sem dados reais. O merge em main publica cada site no seu próprio projeto Pages.
+Abra um pull request. O check `quality` reúne lint, unitários, regras, auditoria de produção, testes e build dos dois layouts. PRs humanos do próprio repositório recebem prévias Cloudflare em modo demo, sem dados reais. Forks e atualizações do Dependabot executam os testes sem acessar o token de publicação. O merge em main publica cada site no seu próprio projeto Pages.
 
 A configuração vem de `sites.json`: não é necessário editar a matriz YAML ao adicionar um site. Projetos Firebase e domínios duplicados são recusados. Configure em GitHub Actions:
 
